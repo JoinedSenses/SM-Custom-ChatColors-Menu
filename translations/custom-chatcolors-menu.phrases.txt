@@ -1,0 +1,83 @@
+"Phrases"
+{
+	"Title"
+	{
+		"en"			"Custom Chat Colors"
+	}
+	"HideTag"
+	{
+		"en"			"Hide Tag"
+	}
+	"ShowTag"
+	{
+		"en"			"Show Tag"
+	}
+	"TagDisabled"
+	{
+		"en"			"Chat tag disabled."
+	}
+	"TagEnabled"
+	{
+		"en"			"Chat tag enabled."
+	}
+	"ChangeTag"
+	{
+		"en"			"Change Tag Color"
+	}
+	"ChangeName"
+	{
+		"en"			"Change Name Color"
+	}
+	"ChangeChat"
+	{
+		"en"			"Change Chat Color"
+	}
+	"TagColor"
+	{
+		"en"			"Tag Color"
+	}
+	"NameColor"
+	{
+		"en"			"Name Color"
+	}
+	"ChatColor"
+	{
+		"en"			"Chat Color"
+	}
+	"ResetColors"
+	{
+		"en"			"All colors reset."
+	}
+	"Reset"
+	{
+		"en"			"Reset"
+	}
+	"ResetAll"
+	{
+		"en"			"Reset All"
+	}
+	"TagSet"
+	{
+		"en"			"Tag color set to:"
+	}
+	"TagReset"
+	{
+		"en"			"Tag color reset."
+	}
+	"NameSet"
+	{
+		"en"			"Name color set to:"
+	}
+	"NameReset"
+	{
+		"en"			"Name color reset."
+	}
+	"ChatSet"
+	{
+		"en"			"Chat color set to:"
+	}
+	"ChatReset"
+	{
+		"en"			"Chat color reset."
+	}
+}
