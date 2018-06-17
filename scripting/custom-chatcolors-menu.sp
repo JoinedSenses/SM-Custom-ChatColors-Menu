@@ -1,60 +1,42 @@
 #pragma semicolon 1
+#pragma newdecls required
 
-// ====[ INCLUDES ]============================================================
 #include <sourcemod>
 #include <regex>
 #include <ccc>
 
-// ====[ DEFINES ]=============================================================
 #define PLUGIN_NAME "Custom Chat Colors Menu"
-#define PLUGIN_VERSION "2.3"
+#define PLUGIN_VERSION "2.4"
 #define MAX_COLORS 255
-#define	TAG 0
+#define TAG 0
 #define NAME 1
 #define CHAT 2
 #define ENABLEFLAG_TAG (1 << TAG)
 #define ENABLEFLAG_NAME (1 << NAME)
 #define ENABLEFLAG_CHAT (1 << CHAT)
 
-// ====[ HANDLES | CVARS ]=====================================================
-new Handle:g_hCvarEnabled, g_iCvarEnabled;
-new Handle:g_hCvarHideTags, bool:g_bCvarHideTags;
-new Handle:g_hRegexHex;
-new Handle:g_hSQL;
-
-// ====[ VARIABLES ]===========================================================
-new g_iColorCount;
-new AdminFlag:g_iColorFlagList[MAX_COLORS][16];
-new bool:g_bColorsLoaded[MAXPLAYERS + 1];
-new bool:g_bColorAdminFlags[MAX_COLORS];
-new bool:g_bHideTag[MAXPLAYERS + 1];
-new bool:g_bAccessColor[MAXPLAYERS + 1][3];
-new bool:g_bAccessHideTags[MAXPLAYERS + 1];
-new String:g_strAuth[MAXPLAYERS + 1][32];
-new String:g_strColor[MAXPLAYERS + 1][3][7];
-new String:g_strColorName[MAX_COLORS][255];
-new String:g_strColorHex[MAX_COLORS][255];
-new String:g_strColorFlags[MAX_COLORS][255];
-new String:g_strConfigFile[PLATFORM_MAX_PATH];
-new String:g_strSQLDriver[16];
+ConVar g_hCvarEnabled, g_hCvarHideTags;
+Handle g_hRegexHex, g_hSQL;
+int g_iColorCount, g_iCvarEnabled;
+AdminFlag g_iColorFlagList[MAX_COLORS][16];
+bool g_bCvarHideTags, g_bColorsLoaded[MAXPLAYERS + 1], g_bColorAdminFlags[MAX_COLORS], g_bHideTag[MAXPLAYERS + 1], g_bAccessColor[MAXPLAYERS + 1][3], g_bAccessHideTags[MAXPLAYERS + 1];
+char g_strAuth[MAXPLAYERS + 1][32], g_strColor[MAXPLAYERS + 1][3][7], g_strColorName[MAX_COLORS][255], g_strColorHex[MAX_COLORS][255];
+char g_strColorFlags[MAX_COLORS][255], g_strConfigFile[PLATFORM_MAX_PATH], g_strSQLDriver[16];
 
 // ====[ PLUGIN ]==============================================================
-public Plugin:myinfo =
-{
+public Plugin myinfo = {
 	name = PLUGIN_NAME,
 	author = "ReFlexPoison, modified/fixed by JoinedSenses",
 	description = "Change Custom Chat Colors settings through easy to access menus",
 	version = PLUGIN_VERSION,
 	url = "http://www.sourcemod.net"
 }
-
 // ====[ EVENTS ]==============================================================
-public OnPluginStart()
-{
+public void OnPluginStart(){
 	CreateConVar("sm_cccm_version", PLUGIN_VERSION, PLUGIN_NAME, FCVAR_SPONLY | FCVAR_DONTRECORD | FCVAR_NOTIFY);
 
 	g_hCvarEnabled = CreateConVar("sm_cccm_enabled", "7", "Enable Custom Chat Colors Menu (Add up the numbers to choose)\n0 = Disabled\n1 = Tag\n2 = Name\n4 = Chat", 0, true, 0.0, true, 7.0);
-	g_iCvarEnabled = GetConVarInt(g_hCvarEnabled);
+	g_iCvarEnabled = g_hCvarEnabled.IntValue;
 	HookConVarChange(g_hCvarEnabled, OnConVarChange);
 
 	g_hCvarHideTags = CreateConVar("sm_cccm_hidetags", "1", "Allow players to hide their chat tags\n0 = Disabled\n1 = Enabled", 0, true, 0.0, true, 1.0);
@@ -81,879 +63,750 @@ public OnPluginStart()
 	BuildPath(Path_SM, g_strConfigFile, sizeof(g_strConfigFile), "configs/custom-chatcolors-menu.cfg");
 
 	g_hSQL = INVALID_HANDLE;
-	if(SQL_CheckConfig("cccm"))
+	if (SQL_CheckConfig("cccm"))
 		SQL_TConnect(SQLQuery_Connect, "cccm");
 }
 
-public OnConVarChange(Handle:hConvar, const String:strOldValue[], const String:strNewValue[])
-{
-	if(hConvar == g_hCvarEnabled)
-		g_iCvarEnabled = GetConVarInt(g_hCvarEnabled);
-	else if(hConvar == g_hCvarHideTags)
-		g_bCvarHideTags = GetConVarBool(g_hCvarHideTags);
+public void OnConVarChange(ConVar convar, const char[] strOldValue, const char[] strNewValue){
+	if (convar == g_hCvarEnabled)
+		g_iCvarEnabled = g_hCvarEnabled.IntValue;
+	else if (convar == g_hCvarHideTags)
+		g_bCvarHideTags = g_hCvarHideTags.BoolValue;
 }
 
-public SQL_LoadColors(iClient)
-{
-	if(!IsClientAuthorized(iClient))
+public void SQL_LoadColors(int client){
+	if (!IsClientAuthorized(client))
 		return;
 
-	if(g_hSQL != INVALID_HANDLE)
-	{
-		decl String:strAuth[32];
-		GetClientAuthId(iClient, AuthId_Steam2, strAuth, sizeof(strAuth));
-		strcopy(g_strAuth[iClient], sizeof(g_strAuth[]), strAuth);
-
-		decl String:strQuery[256];
-		Format(strQuery, sizeof(strQuery), "SELECT hidetag, tagcolor, namecolor, chatcolor FROM cccm_users WHERE auth = '%s'", g_strAuth[iClient]);
-		SQL_TQuery(g_hSQL, SQLQuery_LoadColors, strQuery, GetClientUserId(iClient), DBPrio_High);
+	if (g_hSQL != INVALID_HANDLE){
+		char strAuth[32], strQuery[256];
+		GetClientAuthId(client, AuthId_Steam2, strAuth, sizeof(strAuth));
+		strcopy(g_strAuth[client], sizeof(g_strAuth[]), strAuth);
+		Format(strQuery, sizeof(strQuery), "SELECT hidetag, tagcolor, namecolor, chatcolor FROM cccm_users WHERE auth = '%s'", g_strAuth[client]);
+		SQL_TQuery(g_hSQL, SQLQuery_LoadColors, strQuery, GetClientUserId(client), DBPrio_High);
 	}
 }
 
-public OnConfigsExecuted()
-{
+public void OnConfigsExecuted(){
 	Config_Load();
 }
 
-public OnClientConnected(iClient)
-{
-	g_bColorsLoaded[iClient] = false;
-	g_bHideTag[iClient] = false;
-	g_bAccessColor[iClient][TAG] = false;
-	g_bAccessColor[iClient][NAME] = false;
-	g_bAccessColor[iClient][CHAT] = false;
-	g_bAccessHideTags[iClient] = false;
-	strcopy(g_strAuth[iClient], sizeof(g_strAuth[]), "");
-	strcopy(g_strColor[iClient][TAG], sizeof(g_strColor[][]), "");
-	strcopy(g_strColor[iClient][NAME], sizeof(g_strColor[][]), "");
-	strcopy(g_strColor[iClient][CHAT], sizeof(g_strColor[][]), "");
+public void OnClientConnected(int client){
+	g_bColorsLoaded[client] = false;
+	g_bHideTag[client] = false;
+	g_bAccessColor[client][TAG] = false;
+	g_bAccessColor[client][NAME] = false;
+	g_bAccessColor[client][CHAT] = false;
+	g_bAccessHideTags[client] = false;
+	strcopy(g_strAuth[client], sizeof(g_strAuth[]), "");
+	strcopy(g_strColor[client][TAG], sizeof(g_strColor[][]), "");
+	strcopy(g_strColor[client][NAME], sizeof(g_strColor[][]), "");
+	strcopy(g_strColor[client][CHAT], sizeof(g_strColor[][]), "");
 }
 
-public CCC_OnUserConfigLoaded(iClient)
-{
-	if(g_bColorsLoaded[iClient])
+public void CCC_OnUserConfigLoaded(int client){
+	if (g_bColorsLoaded[client])
 		return;
 
-	decl String:strTag[7];
-	IntToString(CCC_GetColor(iClient, CCC_TagColor), strTag, sizeof(strTag));
-	if(IsValidHex(strTag))
-		strcopy(g_strColor[iClient][TAG], sizeof(g_strColor[][]), strTag);
+	char strTag[7], strName[7], strChat[7];
+	IntToString(CCC_GetColor(client, CCC_TagColor), strTag, sizeof(strTag));
+	if (IsValidHex(strTag))
+		strcopy(g_strColor[client][TAG], sizeof(g_strColor[][]), strTag);
 
-	decl String:strName[7];
-	IntToString(CCC_GetColor(iClient, CCC_NameColor), strName, sizeof(strName));
-	if(IsValidHex(strName))
-		strcopy(g_strColor[iClient][NAME], sizeof(g_strColor[][]), strName);
+	IntToString(CCC_GetColor(client, CCC_NameColor), strName, sizeof(strName));
+	if (IsValidHex(strName))
+		strcopy(g_strColor[client][NAME], sizeof(g_strColor[][]), strName);
 
-	decl String:strChat[7];
-	IntToString(CCC_GetColor(iClient, CCC_ChatColor), strChat, sizeof(strChat));
-	if(IsValidHex(strChat))
-		strcopy(g_strColor[iClient][CHAT], sizeof(g_strColor[][]), strChat);
+	IntToString(CCC_GetColor(client, CCC_ChatColor), strChat, sizeof(strChat));
+	if (IsValidHex(strChat))
+		strcopy(g_strColor[client][CHAT], sizeof(g_strColor[][]), strChat);
 }
 
-public OnClientAuthorized(iClient, const String:strAuth[])
-{
-	strcopy(g_strAuth[iClient], sizeof(g_strAuth[]), strAuth);
+public void OnClientAuthorized(int client, const char[] strAuth){
+	strcopy(g_strAuth[client], sizeof(g_strAuth[]), strAuth);
 }
 
-public OnRebuildAdminCache(AdminCachePart:iPart)
-{
-	for(new i = 1; i <= MaxClients; i++) if(IsClientInGame(i))
-	{
+public void OnRebuildAdminCache(AdminCachePart part){
+	for (int i = 1; i <= MaxClients; i++) if (IsClientInGame(i)){
 		OnClientConnected(i);
 		OnClientPostAdminCheck(i);
 	}
 }
 
-public OnClientPostAdminCheck(iClient)
-{
-	SQL_LoadColors(iClient);
-	if(CheckCommandAccess(iClient, "sm_ccc_tag", ADMFLAG_GENERIC))
-		g_bAccessColor[iClient][TAG] = true;
-	if(CheckCommandAccess(iClient, "sm_ccc_name", ADMFLAG_GENERIC))
-		g_bAccessColor[iClient][NAME] = true;
-	if(CheckCommandAccess(iClient, "sm_ccc_chat", ADMFLAG_GENERIC))
-		g_bAccessColor[iClient][CHAT] = true;
-	if(CheckCommandAccess(iClient, "sm_ccc_hidetags", ADMFLAG_GENERIC))
-		g_bAccessHideTags[iClient] = true;
+public void OnClientPostAdminCheck(int client){
+	SQL_LoadColors(client);
+	if (CheckCommandAccess(client, "sm_ccc_tag", ADMFLAG_GENERIC))
+		g_bAccessColor[client][TAG] = true;
+	if (CheckCommandAccess(client, "sm_ccc_name", ADMFLAG_GENERIC))
+		g_bAccessColor[client][NAME] = true;
+	if (CheckCommandAccess(client, "sm_ccc_chat", ADMFLAG_GENERIC))
+		g_bAccessColor[client][CHAT] = true;
+	if (CheckCommandAccess(client, "sm_ccc_hidetags", ADMFLAG_GENERIC))
+		g_bAccessHideTags[client] = true;
 }
 
-public Action:CCC_OnColor(iClient, const String:strMessage[], CCC_ColorType:iType)
-{
-	if(iType == CCC_TagColor)
-	{
-		if(!(g_iCvarEnabled & ENABLEFLAG_TAG))
+public Action CCC_OnColor(int client, const char[] strMessage, CCC_ColorType type){
+	if (type == CCC_TagColor){
+		if (!(g_iCvarEnabled & ENABLEFLAG_TAG))
 			return Plugin_Handled;
 
-		if(g_bHideTag[iClient])
+		if (g_bHideTag[client])
 			return Plugin_Handled;
 	}
 
-	if(iType == CCC_NameColor)
-	{
-		if(!(g_iCvarEnabled & ENABLEFLAG_NAME))
+	if (type == CCC_NameColor){
+		if (!(g_iCvarEnabled & ENABLEFLAG_NAME))
 			return Plugin_Handled;
 
-		if(!IsValidHex(g_strColor[iClient][NAME]))
+		if (!IsValidHex(g_strColor[client][NAME]))
 			return Plugin_Handled;
 	}
 
-	if(iType == CCC_ChatColor)
-	{
-		if(!(g_iCvarEnabled & ENABLEFLAG_CHAT))
+	if (type == CCC_ChatColor){
+		if (!(g_iCvarEnabled & ENABLEFLAG_CHAT))
 			return Plugin_Handled;
 
-		if(!IsValidHex(g_strColor[iClient][CHAT]))
+		if (!IsValidHex(g_strColor[client][CHAT]))
 			return Plugin_Handled;
 	}
 
 	return Plugin_Continue;
 }
-
 // ====[ COMMANDS ]============================================================
-public Action:Command_Color(iClient, iArgs)
-{
-	if(!IsValidClient(iClient))
+public Action Command_Color(int client, int args){
+	if (!IsValidClient(client))
 		return Plugin_Continue;
 
-	Menu_Settings(iClient);
+	Menu_Settings(client);
 	return Plugin_Handled;
 }
 
-public Action:Command_Reload(iClient, iArgs)
-{
+public Action Command_Reload(int client, int args){
 	Config_Load();
-	ReplyToCommand(iClient, "[SM] Configuration file %s reloaded.", g_strConfigFile);
+	ReplyToCommand(client, "[SM] Configuration file %s reloaded.", g_strConfigFile);
 	return Plugin_Handled;
 }
 
-public Action:Command_TagColor(iClient, iArgs)
-{
-	if(!IsValidClient(iClient))
+public Action Command_TagColor(int client, int args){
+	if (!IsValidClient(client))
 		return Plugin_Continue;
 
-	if(iArgs != 1)
-	{
-		ReplyToCommand(iClient, "[SM] Usage: sm_tagcolor <hex>");
+	if (args != 1){
+		ReplyToCommand(client, "[SM] Usage: sm_tagcolor <hex>");
 		return Plugin_Handled;
 	}
 
-	decl String:strArg[32];
+	char strArg[32];
 	GetCmdArgString(strArg, sizeof(strArg));
 	ReplaceString(strArg, sizeof(strArg), "#", "", false);
 
-	if(!IsValidHex(strArg))
-	{
-		ReplyToCommand(iClient, "[SM] Usage: sm_tagcolor <hex>");
+	if (!IsValidHex(strArg)){
+		ReplyToCommand(client, "[SM] Usage: sm_tagcolor <hex>");
 		return Plugin_Handled;
 	}
 
-	PrintToChat(iClient, "\x01[SM] %T \x07%s#%s\x01", "TagSet", iClient, strArg, strArg);
-	strcopy(g_strColor[iClient][TAG], sizeof(g_strColor[][]), strArg);
-	CCC_SetColor(iClient, CCC_TagColor, StringToInt(strArg, 16), false);
+	PrintToChat(client, "\x01[SM] %T \x07%s#%s\x01", "TagSet", client, strArg, strArg);
+	strcopy(g_strColor[client][TAG], sizeof(g_strColor[][]), strArg);
+	CCC_SetColor(client, CCC_TagColor, StringToInt(strArg, 16), false);
 
-	if(g_hSQL != INVALID_HANDLE && IsClientAuthorized(iClient))
-	{
-		decl String:strQuery[256];
-		Format(strQuery, sizeof(strQuery), "SELECT tagcolor FROM cccm_users WHERE auth = '%s'", g_strAuth[iClient]);
-		SQL_TQuery(g_hSQL, SQLQuery_TagColor, strQuery, GetClientUserId(iClient), DBPrio_High);
+	if (g_hSQL != INVALID_HANDLE && IsClientAuthorized(client)){
+		char strQuery[256];
+		Format(strQuery, sizeof(strQuery), "SELECT tagcolor FROM cccm_users WHERE auth = '%s'", g_strAuth[client]);
+		SQL_TQuery(g_hSQL, SQLQuery_TagColor, strQuery, GetClientUserId(client), DBPrio_High);
 	}
 
 	return Plugin_Handled;
 }
 
-public Action:Command_ResetTagColor(iClient, iArgs)
-{
-	if(!IsValidClient(iClient))
+public Action Command_ResetTagColor(int client, int args){
+	if (!IsValidClient(client))
 		return Plugin_Continue;
 
-	PrintToChat(iClient, "[SM] %T", "TagReset", iClient);
-	strcopy(g_strColor[iClient][TAG], sizeof(g_strColor[][]), "");
-	CCC_ResetColor(iClient, CCC_TagColor);
+	PrintToChat(client, "[SM] %T", "TagReset", client);
+	strcopy(g_strColor[client][TAG], sizeof(g_strColor[][]), "");
+	CCC_ResetColor(client, CCC_TagColor);
 
 
-	if(g_hSQL != INVALID_HANDLE && IsClientAuthorized(iClient))
-	{
-		decl String:strQuery[256];
-		Format(strQuery, sizeof(strQuery), "SELECT tagcolor FROM cccm_users WHERE auth = '%s'", g_strAuth[iClient]);
-		SQL_TQuery(g_hSQL, SQLQuery_TagColor, strQuery, GetClientUserId(iClient), DBPrio_High);
+	if (g_hSQL != INVALID_HANDLE && IsClientAuthorized(client)){
+		char strQuery[256];
+		Format(strQuery, sizeof(strQuery), "SELECT tagcolor FROM cccm_users WHERE auth = '%s'", g_strAuth[client]);
+		SQL_TQuery(g_hSQL, SQLQuery_TagColor, strQuery, GetClientUserId(client), DBPrio_High);
 	}
 
 	return Plugin_Handled;
 }
 
-public Action:Command_NameColor(iClient, iArgs)
-{
-	if(!IsValidClient(iClient))
+public Action Command_NameColor(int client, int args){
+	if (!IsValidClient(client))
 		return Plugin_Continue;
 
-	if(iArgs != 1)
-	{
-		ReplyToCommand(iClient, "[SM] Usage: sm_namecolor <hex>");
+	if (args != 1){
+		ReplyToCommand(client, "[SM] Usage: sm_namecolor <hex>");
 		return Plugin_Handled;
 	}
 
-	decl String:strArg[32];
+	char strArg[32];
 	GetCmdArgString(strArg, sizeof(strArg));
 	ReplaceString(strArg, sizeof(strArg), "#", "", false);
 
-	if(!IsValidHex(strArg))
-	{
-		ReplyToCommand(iClient, "[SM] Usage: sm_namecolor <hex>");
+	if (!IsValidHex(strArg)){
+		ReplyToCommand(client, "[SM] Usage: sm_namecolor <hex>");
 		return Plugin_Handled;
 	}
 
-	PrintToChat(iClient, "\x01[SM] %T \x07%s#%s\x01", "NameSet", iClient, strArg, strArg);
-	strcopy(g_strColor[iClient][NAME], sizeof(g_strColor[][]), strArg);
-	CCC_SetColor(iClient, CCC_NameColor, StringToInt(strArg, 16), false);
+	PrintToChat(client, "\x01[SM] %T \x07%s#%s\x01", "NameSet", client, strArg, strArg);
+	strcopy(g_strColor[client][NAME], sizeof(g_strColor[][]), strArg);
+	CCC_SetColor(client, CCC_NameColor, StringToInt(strArg, 16), false);
 
-	if(g_hSQL != INVALID_HANDLE && IsClientAuthorized(iClient))
-	{
-		decl String:strQuery[256];
-		Format(strQuery, sizeof(strQuery), "SELECT namecolor FROM cccm_users WHERE auth = '%s'", g_strAuth[iClient]);
-		SQL_TQuery(g_hSQL, SQLQuery_NameColor, strQuery, GetClientUserId(iClient), DBPrio_High);
+	if (g_hSQL != INVALID_HANDLE && IsClientAuthorized(client)){
+		char strQuery[256];
+		Format(strQuery, sizeof(strQuery), "SELECT namecolor FROM cccm_users WHERE auth = '%s'", g_strAuth[client]);
+		SQL_TQuery(g_hSQL, SQLQuery_NameColor, strQuery, GetClientUserId(client), DBPrio_High);
 	}
 
 	return Plugin_Handled;
 }
 
-public Action:Command_ResetNameColor(iClient, iArgs)
-{
-	if(!IsValidClient(iClient))
+public Action Command_ResetNameColor(int client, int args){
+	if (!IsValidClient(client))
 		return Plugin_Continue;
 
-	PrintToChat(iClient, "[SM] %T", "NameReset", iClient);
-	strcopy(g_strColor[iClient][NAME], sizeof(g_strColor[][]), "");
-	CCC_ResetColor(iClient, CCC_NameColor);
+	PrintToChat(client, "[SM] %T", "NameReset", client);
+	strcopy(g_strColor[client][NAME], sizeof(g_strColor[][]), "");
+	CCC_ResetColor(client, CCC_NameColor);
 
-	if(g_hSQL != INVALID_HANDLE && IsClientAuthorized(iClient))
-	{
-		decl String:strQuery[256];
-		Format(strQuery, sizeof(strQuery), "SELECT namecolor FROM cccm_users WHERE auth = '%s'", g_strAuth[iClient]);
-		SQL_TQuery(g_hSQL, SQLQuery_NameColor, strQuery, GetClientUserId(iClient), DBPrio_High);
+	if (g_hSQL != INVALID_HANDLE && IsClientAuthorized(client)){
+		char strQuery[256];
+		Format(strQuery, sizeof(strQuery), "SELECT namecolor FROM cccm_users WHERE auth = '%s'", g_strAuth[client]);
+		SQL_TQuery(g_hSQL, SQLQuery_NameColor, strQuery, GetClientUserId(client), DBPrio_High);
 	}
 
 	return Plugin_Handled;
 }
 
-public Action:Command_ChatColor(iClient, iArgs)
+public Action Command_ChatColor(int client, int args)
 {
-	if(!IsValidClient(iClient))
+	if (!IsValidClient(client))
 		return Plugin_Continue;
 
-	if(iArgs != 1)
-	{
-		ReplyToCommand(iClient, "[SM] Usage: sm_chatcolor <hex>");
+	if (args != 1){
+		ReplyToCommand(client, "[SM] Usage: sm_chatcolor <hex>");
 		return Plugin_Handled;
 	}
 
-	decl String:strArg[32];
+	char strArg[32];
 	GetCmdArgString(strArg, sizeof(strArg));
 	ReplaceString(strArg, sizeof(strArg), "#", "", false);
 
-	if(!IsValidHex(strArg))
-	{
-		ReplyToCommand(iClient, "[SM] Usage: sm_chatcolor <hex>");
+	if (!IsValidHex(strArg)){
+		ReplyToCommand(client, "[SM] Usage: sm_chatcolor <hex>");
 		return Plugin_Handled;
 	}
 
-	PrintToChat(iClient, "\x01[SM] %T \x07%s#%s\x01", "ChatSet", iClient, strArg, strArg);
-	strcopy(g_strColor[iClient][TAG], sizeof(g_strColor[][]), strArg);
-	CCC_SetColor(iClient, CCC_TagColor, StringToInt(strArg, 16), false);
+	PrintToChat(client, "\x01[SM] %T \x07%s#%s\x01", "ChatSet", client, strArg, strArg);
+	strcopy(g_strColor[client][TAG], sizeof(g_strColor[][]), strArg);
+	CCC_SetColor(client, CCC_TagColor, StringToInt(strArg, 16), false);
 
-	if(g_hSQL != INVALID_HANDLE && IsClientAuthorized(iClient))
-	{
-		decl String:strQuery[256];
-		Format(strQuery, sizeof(strQuery), "SELECT chatcolor FROM cccm_users WHERE auth = '%s'", g_strAuth[iClient]);
-		SQL_TQuery(g_hSQL, SQLQuery_TagColor, strQuery, GetClientUserId(iClient), DBPrio_High);
+	if (g_hSQL != INVALID_HANDLE && IsClientAuthorized(client)){
+		char strQuery[256];
+		Format(strQuery, sizeof(strQuery), "SELECT chatcolor FROM cccm_users WHERE auth = '%s'", g_strAuth[client]);
+		SQL_TQuery(g_hSQL, SQLQuery_TagColor, strQuery, GetClientUserId(client), DBPrio_High);
 	}
 
 	return Plugin_Handled;
 }
 
-public Action:Command_ResetChatColor(iClient, iArgs)
+public Action Command_ResetChatColor(int client, int args)
 {
-	if(!IsValidClient(iClient))
+	if (!IsValidClient(client))
 		return Plugin_Continue;
 
-	PrintToChat(iClient, "[SM] %T", "ChatReset", iClient);
-	strcopy(g_strColor[iClient][CHAT], sizeof(g_strColor[][]), "");
-	CCC_ResetColor(iClient, CCC_ChatColor);
+	PrintToChat(client, "[SM] %T", "ChatReset", client);
+	strcopy(g_strColor[client][CHAT], sizeof(g_strColor[][]), "");
+	CCC_ResetColor(client, CCC_ChatColor);
 
-	if(g_hSQL != INVALID_HANDLE && IsClientAuthorized(iClient))
-	{
-		decl String:strQuery[256];
-		Format(strQuery, sizeof(strQuery), "SELECT chatcolor FROM cccm_users WHERE auth = '%s'", g_strAuth[iClient]);
-		SQL_TQuery(g_hSQL, SQLQuery_ChatColor, strQuery, GetClientUserId(iClient), DBPrio_High);
+	if (g_hSQL != INVALID_HANDLE && IsClientAuthorized(client)){
+		char strQuery[256];
+		Format(strQuery, sizeof(strQuery), "SELECT chatcolor FROM cccm_users WHERE auth = '%s'", g_strAuth[client]);
+		SQL_TQuery(g_hSQL, SQLQuery_ChatColor, strQuery, GetClientUserId(client), DBPrio_High);
 	}
 
 	return Plugin_Handled;
 }
-
 // ====[ MENUS ]===============================================================
-public Menu_Settings(iClient)
+public void Menu_Settings(int client)
 {
-	if(IsVoteInProgress())
+	if (IsVoteInProgress())
 		return;
 
-	new Handle:hMenu = CreateMenu(MenuHandler_Settings);
-	SetMenuTitle(hMenu, "%T:", "Title", iClient);
+	Menu menu = CreateMenu(MenuHandler_Settings);
+	SetMenuTitle(menu, "%T:", "Title", client);
 
-	decl String:strBuffer[32];
-	if(g_bCvarHideTags)
-	{
+	char strBuffer[32];
+	if (g_bCvarHideTags){
 		
-		if(!g_bHideTag[iClient])
-		{
-			Format(strBuffer, sizeof(strBuffer), "%T", "HideTag", iClient);
-			AddMenuItem(hMenu, "HideTag", strBuffer);
+		if (!g_bHideTag[client]){
+			Format(strBuffer, sizeof(strBuffer), "%T", "HideTag", client);
+			AddMenuItem(menu, "HideTag", strBuffer);
 		}
-		else
-		{
-			Format(strBuffer, sizeof(strBuffer), "%T", "ShowTag", iClient);
-			AddMenuItem(hMenu, "HideTag", strBuffer);
+		else {
+			Format(strBuffer, sizeof(strBuffer), "%T", "ShowTag", client);
+			AddMenuItem(menu, "HideTag", strBuffer);
 		}
 	}
-	Format(strBuffer, sizeof(strBuffer), "%T", "ChangeTag", iClient);
-	if(g_iCvarEnabled & ENABLEFLAG_TAG && g_bAccessColor[iClient][TAG])
-		AddMenuItem(hMenu, "Tag", strBuffer);
+	Format(strBuffer, sizeof(strBuffer), "%T", "ChangeTag", client);
+	if (g_iCvarEnabled & ENABLEFLAG_TAG && g_bAccessColor[client][TAG])
+		AddMenuItem(menu, "Tag", strBuffer);
 
-	Format(strBuffer, sizeof(strBuffer), "%T", "ChangeName", iClient);
-	if(g_iCvarEnabled & ENABLEFLAG_NAME && g_bAccessColor[iClient][NAME])
-		AddMenuItem(hMenu, "Name", strBuffer);
+	Format(strBuffer, sizeof(strBuffer), "%T", "ChangeName", client);
+	if (g_iCvarEnabled & ENABLEFLAG_NAME && g_bAccessColor[client][NAME])
+		AddMenuItem(menu, "Name", strBuffer);
 
-	Format(strBuffer, sizeof(strBuffer), "%T", "ChangeChat", iClient);
-	if(g_iCvarEnabled & ENABLEFLAG_CHAT && g_bAccessColor[iClient][CHAT])
-		AddMenuItem(hMenu, "Chat", strBuffer);
+	Format(strBuffer, sizeof(strBuffer), "%T", "ChangeChat", client);
+	if (g_iCvarEnabled & ENABLEFLAG_CHAT && g_bAccessColor[client][CHAT])
+		AddMenuItem(menu, "Chat", strBuffer);
 
-	DisplayMenu(hMenu, iClient, MENU_TIME_FOREVER);
+	DisplayMenu(menu, client, MENU_TIME_FOREVER);
 }
 
-public MenuHandler_Settings(Handle:hMenu, MenuAction:iAction, iParam1, iParam2)
-{
-	if(iAction == MenuAction_End)
-	{
-		CloseHandle(hMenu);
+public int MenuHandler_Settings(Menu menu, MenuAction action, int param1, int param2){
+	if (action == MenuAction_End){
+		CloseHandle(menu);
 		return;
 	}
 
-	if(iAction == MenuAction_Select)
-	{
-		decl String:strBuffer[32];
-		GetMenuItem(hMenu, iParam2, strBuffer, sizeof(strBuffer));
-		if(StrEqual(strBuffer, "HideTag"))
-		{
-			if(g_bHideTag[iParam1])
-			{
-				g_bHideTag[iParam1] = false;
-				PrintToChat(iParam1, "[SM] %T", "TagEnabled", iParam1);
-				Menu_Settings(iParam1);
+	if (action == MenuAction_Select){
+		char strBuffer[32];
+		GetMenuItem(menu, param2, strBuffer, sizeof(strBuffer));
+		if (StrEqual(strBuffer, "HideTag")){
+			if (g_bHideTag[param1]){
+				g_bHideTag[param1] = false;
+				PrintToChat(param1, "[SM] %T", "TagEnabled", param1);
+				Menu_Settings(param1);
 			}
-			else
-			{
-				g_bHideTag[iParam1] = true;
-				PrintToChat(iParam1, "[SM] %T", "TagDisabled", iParam1);
-				Menu_Settings(iParam1);
+			else {
+				g_bHideTag[param1] = true;
+				PrintToChat(param1, "[SM] %T", "TagDisabled", param1);
+				Menu_Settings(param1);
 			}
 
-			if(g_hSQL != INVALID_HANDLE && IsClientAuthorized(iParam1))
-			{
-				decl String:strQuery[256];
-				Format(strQuery, sizeof(strQuery), "SELECT hidetag FROM cccm_users WHERE auth = '%s'", g_strAuth[iParam1]);
-				SQL_TQuery(g_hSQL, SQLQuery_HideTag, strQuery, GetClientUserId(iParam1), DBPrio_High);
+			if (g_hSQL != INVALID_HANDLE && IsClientAuthorized(param1)){
+				char strQuery[256];
+				Format(strQuery, sizeof(strQuery), "SELECT hidetag FROM cccm_users WHERE auth = '%s'", g_strAuth[param1]);
+				SQL_TQuery(g_hSQL, SQLQuery_HideTag, strQuery, GetClientUserId(param1), DBPrio_High);
 			}
 		}
-		if(StrEqual(strBuffer, "Tag"))
-			Menu_TagColor(iParam1);
-		else if(StrEqual(strBuffer, "Name"))
-			Menu_NameColor(iParam1);
-		else if(StrEqual(strBuffer, "Chat"))
-			Menu_ChatColor(iParam1);
+		if (StrEqual(strBuffer, "Tag"))
+			Menu_TagColor(param1);
+		else if (StrEqual(strBuffer, "Name"))
+			Menu_NameColor(param1);
+		else if (StrEqual(strBuffer, "Chat"))
+			Menu_ChatColor(param1);
 	}
 }
 
-public Menu_TagColor(iClient)
-{
-	if(IsVoteInProgress())
+public void Menu_TagColor(int client){
+	if (IsVoteInProgress())
 		return;
 
-	new Handle:hMenu = CreateMenu(MenuHandler_TagColor);
-	SetMenuTitle(hMenu, "%T:", "TagColor", iClient);
-	SetMenuExitBackButton(hMenu, true);
+	Menu menu = CreateMenu(MenuHandler_TagColor);
+	SetMenuTitle(menu, "%T:", "TagColor", client);
+	SetMenuExitBackButton(menu, true);
 
-	decl String:strBuffer[32];
-	Format(strBuffer, sizeof(strBuffer), "%T", "Reset", iClient);
-	AddMenuItem(hMenu, "Reset", strBuffer);
+	char strBuffer[32], strColorIndex[4];
+	Format(strBuffer, sizeof(strBuffer), "%T", "Reset", client);
+	AddMenuItem(menu, "Reset", strBuffer);
 
-	decl String:strColorIndex[4];
-	for(new i = 0; i < g_iColorCount; i++)
-	{
-		if(!g_bColorAdminFlags[i] || (g_bColorAdminFlags[i] && HasAdminFlag(iClient, g_iColorFlagList[i])))
-		{
+	for (int i = 0; i < g_iColorCount; i++){
+		if (!g_bColorAdminFlags[i] || (g_bColorAdminFlags[i] && HasAdminFlag(client, g_iColorFlagList[i]))){
 			IntToString(i, strColorIndex, sizeof(strColorIndex));
-			AddMenuItem(hMenu, strColorIndex, g_strColorName[i]);
+			AddMenuItem(menu, strColorIndex, g_strColorName[i]);
 		}
 	}
 
-	DisplayMenu(hMenu, iClient, MENU_TIME_FOREVER);
+	DisplayMenu(menu, client, MENU_TIME_FOREVER);
 }
 
-public MenuHandler_TagColor(Handle:hMenu, MenuAction:iAction, iParam1, iParam2)
-{
-	if(iAction == MenuAction_End)
-	{
+public int MenuHandler_TagColor(Menu menu, MenuAction action, int param1, int param2){
+	if (action == MenuAction_End)
+		return;
+
+	if (action == MenuAction_Cancel && param2 == MenuCancel_ExitBack){
+		Menu_Settings(param1);
 		return;
 	}
 
-	if(iAction == MenuAction_Cancel && iParam2 == MenuCancel_ExitBack)
-	{
-		Menu_Settings(iParam1);
-		return;
-	}
+	if (action == MenuAction_Select){
+		char strBuffer[32];
+		GetMenuItem(menu, param2, strBuffer, sizeof(strBuffer));
 
-	if(iAction == MenuAction_Select)
-	{
-		decl String:strBuffer[32];
-		GetMenuItem(hMenu, iParam2, strBuffer, sizeof(strBuffer));
+		if (StrEqual(strBuffer, "Reset")){
+			PrintToChat(param1, "[SM] %T", "TagReset", param1);
+			strcopy(g_strColor[param1][TAG], sizeof(g_strColor[][]), "");
+			CCC_ResetColor(param1, CCC_TagColor);
 
-		if(StrEqual(strBuffer, "Reset"))
-		{
-			PrintToChat(iParam1, "[SM] %T", "TagReset", iParam1);
-			strcopy(g_strColor[iParam1][TAG], sizeof(g_strColor[][]), "");
-			CCC_ResetColor(iParam1, CCC_TagColor);
-
-			decl String:strTag[7];
-			IntToString(CCC_GetColor(iParam1, CCC_TagColor), strTag, sizeof(strTag));
-			strcopy(g_strColor[iParam1][TAG], sizeof(g_strColor[][]), strTag);
+			char strTag[7];
+			IntToString(CCC_GetColor(param1, CCC_TagColor), strTag, sizeof(strTag));
+			strcopy(g_strColor[param1][TAG], sizeof(g_strColor[][]), strTag);
 		}
-		else
-		{
-			new iColorIndex = StringToInt(strBuffer);
-			PrintToChat(iParam1, "\x01[SM] %T \x07%s%s\x01", "TagSet", iParam1, g_strColorHex[iColorIndex], g_strColorName[iColorIndex]);
-			strcopy(g_strColor[iParam1][TAG], sizeof(g_strColor[][]), g_strColorHex[iColorIndex]);
-			CCC_SetColor(iParam1, CCC_TagColor, StringToInt(g_strColorHex[iColorIndex], 16), false);
+		else {
+			int iColorIndex = StringToInt(strBuffer);
+			PrintToChat(param1, "\x01[SM] %T \x07%s%s\x01", "TagSet", param1, g_strColorHex[iColorIndex], g_strColorName[iColorIndex]);
+			strcopy(g_strColor[param1][TAG], sizeof(g_strColor[][]), g_strColorHex[iColorIndex]);
+			CCC_SetColor(param1, CCC_TagColor, StringToInt(g_strColorHex[iColorIndex], 16), false);
 		}
 
-		if(g_hSQL != INVALID_HANDLE && IsClientAuthorized(iParam1))
-		{
-			decl String:strQuery[256];
-			Format(strQuery, sizeof(strQuery), "SELECT tagcolor FROM cccm_users WHERE auth = '%s'", g_strAuth[iParam1]);
-			SQL_TQuery(g_hSQL, SQLQuery_TagColor, strQuery, GetClientUserId(iParam1), DBPrio_High);
+		if (g_hSQL != INVALID_HANDLE && IsClientAuthorized(param1)){
+			char strQuery[256];
+			Format(strQuery, sizeof(strQuery), "SELECT tagcolor FROM cccm_users WHERE auth = '%s'", g_strAuth[param1]);
+			SQL_TQuery(g_hSQL, SQLQuery_TagColor, strQuery, GetClientUserId(param1), DBPrio_High);
 		}
 
-		DisplayMenuAtItem(hMenu, iParam1, GetMenuSelectionPosition(), MENU_TIME_FOREVER);
+		DisplayMenuAtItem(menu, param1, GetMenuSelectionPosition(), MENU_TIME_FOREVER);
 	}
 }
 
-public Menu_NameColor(iClient)
-{
-	if(IsVoteInProgress())
+public void Menu_NameColor(int client){
+	if (IsVoteInProgress())
 		return;
 
-	new Handle:hMenu = CreateMenu(MenuHandler_NameColor);
-	SetMenuTitle(hMenu, "%T:", "NameColor", iClient);
-	SetMenuExitBackButton(hMenu, true);
+	Menu menu = CreateMenu(MenuHandler_NameColor);
+	SetMenuTitle(menu, "%T:", "NameColor", client);
+	SetMenuExitBackButton(menu, true);
 
-	decl String:strBuffer[32];
-	Format(strBuffer, sizeof(strBuffer), "%T", "Reset", iClient);
-	AddMenuItem(hMenu, "Reset", strBuffer);
+	char strBuffer[32], strColorIndex[4];
+	Format(strBuffer, sizeof(strBuffer), "%T", "Reset", client);
+	AddMenuItem(menu, "Reset", strBuffer);
 
-	decl String:strColorIndex[4];
-	for(new i = 0; i < g_iColorCount; i++)
-	{
-		if(!g_bColorAdminFlags[i] || (g_bColorAdminFlags[i] && HasAdminFlag(iClient, g_iColorFlagList[i])))
-		{
+	for (int i = 0; i < g_iColorCount; i++){
+		if (!g_bColorAdminFlags[i] || (g_bColorAdminFlags[i] && HasAdminFlag(client, g_iColorFlagList[i]))){
 			IntToString(i, strColorIndex, sizeof(strColorIndex));
-			AddMenuItem(hMenu, strColorIndex, g_strColorName[i]);
+			AddMenuItem(menu, strColorIndex, g_strColorName[i]);
 		}
 	}
 
-	DisplayMenu(hMenu, iClient, MENU_TIME_FOREVER);
+	DisplayMenu(menu, client, MENU_TIME_FOREVER);
 }
 
-public MenuHandler_NameColor(Handle:hMenu, MenuAction:iAction, iParam1, iParam2)
-{
-	if(iAction == MenuAction_End)
-	{
+public int MenuHandler_NameColor(Menu menu, MenuAction action, int param1, int param2){
+	if (action == MenuAction_End)
+		return;
+
+	if (action == MenuAction_Cancel && param2 == MenuCancel_ExitBack){
+		Menu_Settings(param1);
 		return;
 	}
 
-	if(iAction == MenuAction_Cancel && iParam2 == MenuCancel_ExitBack)
-	{
-		Menu_Settings(iParam1);
-		return;
-	}
+	if (action == MenuAction_Select){
+		char strBuffer[32];
+		GetMenuItem(menu, param2, strBuffer, sizeof(strBuffer));
 
-	if(iAction == MenuAction_Select)
-	{
-		decl String:strBuffer[32];
-		GetMenuItem(hMenu, iParam2, strBuffer, sizeof(strBuffer));
-
-		if(StrEqual(strBuffer, "Reset"))
-		{
-			PrintToChat(iParam1, "[SM] %T", "NameReset", iParam1);
-			strcopy(g_strColor[iParam1][NAME], sizeof(g_strColor[][]), "");
-			CCC_ResetColor(iParam1, CCC_NameColor);
+		if (StrEqual(strBuffer, "Reset")){
+			PrintToChat(param1, "[SM] %T", "NameReset", param1);
+			strcopy(g_strColor[param1][NAME], sizeof(g_strColor[][]), "");
+			CCC_ResetColor(param1, CCC_NameColor);
 		}
-		else
-		{
-			new iColorIndex = StringToInt(strBuffer);
-			PrintToChat(iParam1, "\x01[SM] %T \x07%s%s\x01", "NameSet", iParam1, g_strColorHex[iColorIndex], g_strColorName[iColorIndex]);
-			strcopy(g_strColor[iParam1][NAME], sizeof(g_strColor[][]), g_strColorHex[iColorIndex]);
-			CCC_SetColor(iParam1, CCC_NameColor, StringToInt(g_strColorHex[iColorIndex], 16), false);
+		else {
+			int iColorIndex = StringToInt(strBuffer);
+			PrintToChat(param1, "\x01[SM] %T \x07%s%s\x01", "NameSet", param1, g_strColorHex[iColorIndex], g_strColorName[iColorIndex]);
+			strcopy(g_strColor[param1][NAME], sizeof(g_strColor[][]), g_strColorHex[iColorIndex]);
+			CCC_SetColor(param1, CCC_NameColor, StringToInt(g_strColorHex[iColorIndex], 16), false);
 		}
 
-		if(g_hSQL != INVALID_HANDLE && IsClientAuthorized(iParam1))
-		{
-			decl String:strQuery[256];
-			Format(strQuery, sizeof(strQuery), "SELECT namecolor FROM cccm_users WHERE auth = '%s'", g_strAuth[iParam1]);
-			SQL_TQuery(g_hSQL, SQLQuery_NameColor, strQuery, GetClientUserId(iParam1), DBPrio_High);
+		if (g_hSQL != INVALID_HANDLE && IsClientAuthorized(param1)){
+			char strQuery[256];
+			Format(strQuery, sizeof(strQuery), "SELECT namecolor FROM cccm_users WHERE auth = '%s'", g_strAuth[param1]);
+			SQL_TQuery(g_hSQL, SQLQuery_NameColor, strQuery, GetClientUserId(param1), DBPrio_High);
 		}
 
-		DisplayMenuAtItem(hMenu, iParam1, GetMenuSelectionPosition(), MENU_TIME_FOREVER);
+		DisplayMenuAtItem(menu, param1, GetMenuSelectionPosition(), MENU_TIME_FOREVER);
 	}
 }
 
-public Menu_ChatColor(iClient)
-{
-	if(IsVoteInProgress())
+public void Menu_ChatColor(int client){
+	if (IsVoteInProgress())
 		return;
 
-	new Handle:hMenu = CreateMenu(MenuHandler_ChatColor);
-	SetMenuTitle(hMenu, "%T:", "ChatColor", iClient);
-	SetMenuExitBackButton(hMenu, true);
+	Menu menu = CreateMenu(MenuHandler_ChatColor);
+	SetMenuTitle(menu, "%T:", "ChatColor", client);
+	SetMenuExitBackButton(menu, true);
 
-	decl String:strBuffer[32];
-	Format(strBuffer, sizeof(strBuffer), "%T", "Reset", iClient);
-	AddMenuItem(hMenu, "Reset", strBuffer);
+	char strBuffer[32], strColorIndex[4];
+	Format(strBuffer, sizeof(strBuffer), "%T", "Reset", client);
+	AddMenuItem(menu, "Reset", strBuffer);
 
-	decl String:strColorIndex[4];
-	for(new i = 0; i < g_iColorCount; i++)
-	{
-		if(!g_bColorAdminFlags[i] || (g_bColorAdminFlags[i] && HasAdminFlag(iClient, g_iColorFlagList[i])))
-		{
+	for (int i = 0; i < g_iColorCount; i++){
+		if (!g_bColorAdminFlags[i] || (g_bColorAdminFlags[i] && HasAdminFlag(client, g_iColorFlagList[i]))){
 			IntToString(i, strColorIndex, sizeof(strColorIndex));
-			AddMenuItem(hMenu, strColorIndex, g_strColorName[i]);
+			AddMenuItem(menu, strColorIndex, g_strColorName[i]);
 		}
 	}
 
-	DisplayMenu(hMenu, iClient, MENU_TIME_FOREVER);
+	DisplayMenu(menu, client, MENU_TIME_FOREVER);
 }
 
-public MenuHandler_ChatColor(Handle:hMenu, MenuAction:iAction, iParam1, iParam2)
-{
-	if(iAction == MenuAction_End)
-	{
+public int MenuHandler_ChatColor(Menu menu, MenuAction action, int param1, int param2){
+	if (action == MenuAction_End)
+		return;
+
+	if (action == MenuAction_Cancel && param2 == MenuCancel_ExitBack){
+		Menu_Settings(param1);
 		return;
 	}
 
-	if(iAction == MenuAction_Cancel && iParam2 == MenuCancel_ExitBack)
-	{
-		Menu_Settings(iParam1);
-		return;
-	}
+	if (action == MenuAction_Select){
+		char strBuffer[32];
+		GetMenuItem(menu, param2, strBuffer, sizeof(strBuffer));
 
-	if(iAction == MenuAction_Select)
-	{
-		decl String:strBuffer[32];
-		GetMenuItem(hMenu, iParam2, strBuffer, sizeof(strBuffer));
-
-		if(StrEqual(strBuffer, "Reset"))
-		{
-			PrintToChat(iParam1, "[SM] %T", "ChatReset", iParam1);
-			strcopy(g_strColor[iParam1][CHAT], sizeof(g_strColor[][]), "");
-			CCC_ResetColor(iParam1, CCC_ChatColor);
+		if (StrEqual(strBuffer, "Reset")){
+			PrintToChat(param1, "[SM] %T", "ChatReset", param1);
+			strcopy(g_strColor[param1][CHAT], sizeof(g_strColor[][]), "");
+			CCC_ResetColor(param1, CCC_ChatColor);
 		}
-		else
-		{
-			new iColorIndex = StringToInt(strBuffer);
-			PrintToChat(iParam1, "\x01[SM] %T \x07%s%s\x01", "ChatSet", iParam1, g_strColorHex[iColorIndex], g_strColorName[iColorIndex]);
-			strcopy(g_strColor[iParam1][CHAT], sizeof(g_strColor[][]), g_strColorHex[iColorIndex]);
-			CCC_SetColor(iParam1, CCC_ChatColor, StringToInt(g_strColorHex[iColorIndex], 16), false);
+		else {
+			int iColorIndex = StringToInt(strBuffer);
+			PrintToChat(param1, "\x01[SM] %T \x07%s%s\x01", "ChatSet", param1, g_strColorHex[iColorIndex], g_strColorName[iColorIndex]);
+			strcopy(g_strColor[param1][CHAT], sizeof(g_strColor[][]), g_strColorHex[iColorIndex]);
+			CCC_SetColor(param1, CCC_ChatColor, StringToInt(g_strColorHex[iColorIndex], 16), false);
 		}
 
-		if(g_hSQL != INVALID_HANDLE && IsClientAuthorized(iParam1))
-		{
-			decl String:strQuery[256];
-			Format(strQuery, sizeof(strQuery), "SELECT chatcolor FROM cccm_users WHERE auth = '%s'", g_strAuth[iParam1]);
-			SQL_TQuery(g_hSQL, SQLQuery_ChatColor, strQuery, GetClientUserId(iParam1), DBPrio_High);
+		if (g_hSQL != INVALID_HANDLE && IsClientAuthorized(param1)){
+			char strQuery[256];
+			Format(strQuery, sizeof(strQuery), "SELECT chatcolor FROM cccm_users WHERE auth = '%s'", g_strAuth[param1]);
+			SQL_TQuery(g_hSQL, SQLQuery_ChatColor, strQuery, GetClientUserId(param1), DBPrio_High);
 		}
 
-		DisplayMenuAtItem(hMenu, iParam1, GetMenuSelectionPosition(), MENU_TIME_FOREVER);
+		DisplayMenuAtItem(menu, param1, GetMenuSelectionPosition(), MENU_TIME_FOREVER);
 	}
 }
-
 // ====[ CONFIGURATION ]=======================================================
-public Config_Load()
-{
-	if(!FileExists(g_strConfigFile))
-	{
+public void Config_Load(){
+	if (!FileExists(g_strConfigFile)){
 		SetFailState("Configuration file %s not found!", g_strConfigFile);
 		return;
 	}
 
-	new Handle:hKeyValues = CreateKeyValues("CCC Menu Colors");
-	if(!FileToKeyValues(hKeyValues, g_strConfigFile))
-	{
+	KeyValues keyvalues = CreateKeyValues("CCC Menu Colors");
+	if (!FileToKeyValues(keyvalues, g_strConfigFile)){
 		SetFailState("Improper structure for configuration file %s!", g_strConfigFile);
 		return;
 	}
 
-	if(!KvGotoFirstSubKey(hKeyValues))
-	{
+	if (!KvGotoFirstSubKey(keyvalues)){
 		SetFailState("Can't find configuration file %s!", g_strConfigFile);
 		return;
 	}
 
-	for(new i = 0; i < MAX_COLORS; i++)
-	{
+	for (int i = 0; i < MAX_COLORS; i++){
 		strcopy(g_strColorName[i], sizeof(g_strColorName[]), "");
 		strcopy(g_strColorHex[i], sizeof(g_strColorHex[]), "");
 		strcopy(g_strColorFlags[i], sizeof(g_strColorFlags[]), "");
 		g_bColorAdminFlags[i] = false;
-		for(new i2 = 0; i2 < 16; i2++)
-			g_iColorFlagList[i][i2] = AdminFlag:-1;
+		for (int i2 = 0; i2 < 16; i2++)
+			g_iColorFlagList[i][i2] = view_as<AdminFlag>(-1);
 	}
 
 	g_iColorCount = 0;
-	do
-	{
-		KvGetString(hKeyValues, "name", g_strColorName[g_iColorCount], sizeof(g_strColorName[]));
-		KvGetString(hKeyValues, "hex",	g_strColorHex[g_iColorCount], sizeof(g_strColorHex[]));
+	do {
+		KvGetString(keyvalues, "name", g_strColorName[g_iColorCount], sizeof(g_strColorName[]));
+		KvGetString(keyvalues, "hex",	g_strColorHex[g_iColorCount], sizeof(g_strColorHex[]));
 		ReplaceString(g_strColorHex[g_iColorCount], sizeof(g_strColorHex[]), "#", "", false);
-		KvGetString(hKeyValues, "flags", g_strColorFlags[g_iColorCount], sizeof(g_strColorFlags[]));
+		KvGetString(keyvalues, "flags", g_strColorFlags[g_iColorCount], sizeof(g_strColorFlags[]));
 
-		if(!IsValidHex(g_strColorHex[g_iColorCount]))
-		{
+		if (!IsValidHex(g_strColorHex[g_iColorCount])){
 			LogError("Invalid hexadecimal value for color %s.", g_strColorName[g_iColorCount]);
 			strcopy(g_strColorName[g_iColorCount], sizeof(g_strColorName[]), "");
 			strcopy(g_strColorHex[g_iColorCount], sizeof(g_strColorHex[]), "");
 			strcopy(g_strColorFlags[g_iColorCount], sizeof(g_strColorFlags[]), "");
 		}
 
-		if(!StrEqual(g_strColorFlags[g_iColorCount], ""))
-		{
+		if (!StrEqual(g_strColorFlags[g_iColorCount], "")){
 			g_bColorAdminFlags[g_iColorCount] = true;
 			FlagBitsToArray(ReadFlagString(g_strColorFlags[g_iColorCount]), g_iColorFlagList[g_iColorCount], sizeof(g_iColorFlagList[]));
 		}
-
 		g_iColorCount++;
 	}
-	while(KvGotoNextKey(hKeyValues));
-	CloseHandle(hKeyValues);
+	while (KvGotoNextKey(keyvalues));
+	CloseHandle(keyvalues);
 
 	LogMessage("Loaded %i colors from configuration file %s.", g_iColorCount, g_strConfigFile);
 }
-
 // ====[ SQL QUERIES ]=========================================================
-public SQLQuery_Connect(Handle:hOwner, Handle:hQuery, const String:strError[], any:iData)
-{
-	if(hQuery == INVALID_HANDLE)
+public void SQLQuery_Connect(Handle owner, Handle hndl, const char[] strError, any data){
+	if (hndl == INVALID_HANDLE)
 		return;
 
-	g_hSQL = hQuery;
-	SQL_GetDriverIdent(hOwner, g_strSQLDriver, sizeof(g_strSQLDriver));
+	g_hSQL = hndl;
+	SQL_GetDriverIdent(owner, g_strSQLDriver, sizeof(g_strSQLDriver));
 
-	if(StrEqual(g_strSQLDriver, "mysql", false))
-	{
+	if (StrEqual(g_strSQLDriver, "mysql", false)){
 		LogMessage("MySQL server configured. Variable saving enabled.");
 		SQL_TQuery(g_hSQL, SQLQuery_Update, "CREATE TABLE IF NOT EXISTS cccm_users (id INT(64) NOT NULL AUTO_INCREMENT, auth varchar(32) UNIQUE, hidetag varchar(1), tagcolor varchar(7), namecolor varchar(7), chatcolor varchar(7), PRIMARY KEY (id))", _, DBPrio_High);
 	}
-	else if(StrEqual(g_strSQLDriver, "sqlite", false))
-	{
+	else if (StrEqual(g_strSQLDriver, "sqlite", false)){
 		LogMessage("SQlite server configured. Variable saving enabled.");
 		SQL_TQuery(g_hSQL, SQLQuery_Update, "CREATE TABLE IF NOT EXISTS cccm_users (id INTERGER PRIMARY KEY, auth varchar(32) UNIQUE, hidetag varchar(1), tagcolor varchar(7), namecolor varchar(7), chatcolor varchar(7))", _, DBPrio_High);
 	}
-	else
-	{
+	else {
 		LogMessage("Saved variable server not configured. Variable saving disabled.");
 		return;
 	}
 
-	for(new i = 1; i <= MaxClients; ++i) if(IsClientInGame(i))
-		SQL_LoadColors(i);
+	for (int i = 1; i <= MaxClients; i++)
+		if (IsClientInGame(i))
+			SQL_LoadColors(i);
 }
 
-public SQLQuery_LoadColors(Handle:hOwner, Handle:hQuery, const String:strError[], any:iData)
-{
-	new iClient = GetClientOfUserId(iData);
-	if(!IsValidClient(iClient))
+public void SQLQuery_LoadColors(Handle owner, Handle hndl, const char[] strError, any data){
+	int client = GetClientOfUserId(data);
+	if (!IsValidClient(client))
 		return;
 
-	if(hOwner == INVALID_HANDLE || hQuery == INVALID_HANDLE)
-	{
+	if (owner == INVALID_HANDLE || hndl == INVALID_HANDLE){
 		LogError("SQL Error: %s", strError);
 		return;
 	}
 
-	if(SQL_FetchRow(hQuery) && SQL_GetRowCount(hQuery) != 0)
-	{
-		g_bHideTag[iClient] = bool:SQL_FetchInt(hQuery, 0);
+	if (SQL_FetchRow(hndl) && SQL_GetRowCount(hndl) != 0){
+		g_bHideTag[client] = view_as<bool>(SQL_FetchInt(hndl, 0));
 
-		decl String:strTag[7];
-		SQL_FetchString(hQuery, 1, strTag, sizeof(strTag));
-		if(IsValidHex(strTag))
-		{
-			strcopy(g_strColor[iClient][TAG], sizeof(g_strColor[][]), strTag);
-			CCC_SetColor(iClient, CCC_TagColor, StringToInt(g_strColor[iClient][TAG], 16), false);
+		char strTag[7], strName[7], strChat[7];
+		SQL_FetchString(hndl, 1, strTag, sizeof(strTag));
+		if (IsValidHex(strTag)){
+			strcopy(g_strColor[client][TAG], sizeof(g_strColor[][]), strTag);
+			CCC_SetColor(client, CCC_TagColor, StringToInt(g_strColor[client][TAG], 16), false);
 		}
-		else if(StrEqual(strTag, "-1"))
-			strcopy(g_strColor[iClient][TAG], sizeof(g_strColor[][]), "-1");
+		else if (StrEqual(strTag, "-1"))
+			strcopy(g_strColor[client][TAG], sizeof(g_strColor[][]), "-1");
 
-		decl String:strName[7];
-		SQL_FetchString(hQuery, 2, strName, sizeof(strName));
-		if(IsValidHex(strName))
-		{
-			strcopy(g_strColor[iClient][NAME], sizeof(g_strColor[][]), strName);
-			CCC_SetColor(iClient, CCC_NameColor, StringToInt(g_strColor[iClient][NAME], 16), false);
+		SQL_FetchString(hndl, 2, strName, sizeof(strName));
+		if (IsValidHex(strName)){
+			strcopy(g_strColor[client][NAME], sizeof(g_strColor[][]), strName);
+			CCC_SetColor(client, CCC_NameColor, StringToInt(g_strColor[client][NAME], 16), false);
 		}
 
-		decl String:strChat[7];
-		SQL_FetchString(hQuery, 3, strChat, sizeof(strChat));
-		if(IsValidHex(strChat))
-		{
-			strcopy(g_strColor[iClient][CHAT], sizeof(g_strColor[][]), strChat);
-			CCC_SetColor(iClient, CCC_ChatColor, StringToInt(g_strColor[iClient][CHAT], 16), false);
+		SQL_FetchString(hndl, 3, strChat, sizeof(strChat));
+		if (IsValidHex(strChat)){
+			strcopy(g_strColor[client][CHAT], sizeof(g_strColor[][]), strChat);
+			CCC_SetColor(client, CCC_ChatColor, StringToInt(g_strColor[client][CHAT], 16), false);
 		}
 
-		g_bColorsLoaded[iClient] = true;
+		g_bColorsLoaded[client] = true;
 	}
 }
 
-public SQLQuery_HideTag(Handle:hOwner, Handle:hQuery, const String:strError[], any:iClientId)
-{
-	new iClient = GetClientOfUserId(iClientId);
-	if(!IsValidClient(iClient))
+public void SQLQuery_HideTag(Handle owner, Handle hndl, const char[] strError, any data){
+	int client = GetClientOfUserId(data);
+	if (!IsValidClient(client))
 		return;
 
-	if(hOwner == INVALID_HANDLE || hQuery == INVALID_HANDLE)
-	{
+	if (owner == INVALID_HANDLE || hndl == INVALID_HANDLE){
 		LogError("SQL Error: %s", strError);
 		return;
 	}
 
-	if(SQL_GetRowCount(hQuery) == 0)
-	{
-		decl String:strQuery[256];
-		Format(strQuery, sizeof(strQuery), "INSERT INTO cccm_users (hidetag, auth) VALUES (%i, '%s')", g_bHideTag[iClient], g_strAuth[iClient]);
+	if (SQL_GetRowCount(hndl) == 0){
+		char strQuery[256];
+		Format(strQuery, sizeof(strQuery), "INSERT INTO cccm_users (hidetag, auth) VALUES (%i, '%s')", g_bHideTag[client], g_strAuth[client]);
 		SQL_TQuery(g_hSQL, SQLQuery_Update, strQuery, _, DBPrio_High);
 	}
-	else
-	{
-		decl String:strQuery[256];
-		Format(strQuery, sizeof(strQuery), "UPDATE cccm_users SET hidetag = '%i' WHERE auth = '%s'", g_bHideTag[iClient], g_strAuth[iClient]);
+	else {
+		char strQuery[256];
+		Format(strQuery, sizeof(strQuery), "UPDATE cccm_users SET hidetag = '%i' WHERE auth = '%s'", g_bHideTag[client], g_strAuth[client]);
 		SQL_TQuery(g_hSQL, SQLQuery_Update, strQuery, _, DBPrio_Normal);
 	}
 }
 
-public SQLQuery_TagColor(Handle:hOwner, Handle:hQuery, const String:strError[], any:iClientId)
-{
-	new iClient = GetClientOfUserId(iClientId);
-	if(!IsValidClient(iClient))
+public void SQLQuery_TagColor(Handle owner, Handle hndl, const char[] strError, any data){
+	int client = GetClientOfUserId(data);
+	if (!IsValidClient(client))
 		return;
 
-	if(hOwner == INVALID_HANDLE || hQuery == INVALID_HANDLE)
-	{
+	if (owner == INVALID_HANDLE || hndl == INVALID_HANDLE){
 		LogError("SQL Error: %s", strError);
 		return;
 	}
 
-	if(SQL_GetRowCount(hQuery) == 0)
-	{
-		decl String:strQuery[256];
-		Format(strQuery, sizeof(strQuery), "INSERT INTO cccm_users (tagcolor, auth) VALUES ('%s', '%s')", g_strColor[iClient][TAG], g_strAuth[iClient]);
+	if (SQL_GetRowCount(hndl) == 0){
+		char strQuery[256];
+		Format(strQuery, sizeof(strQuery), "INSERT INTO cccm_users (tagcolor, auth) VALUES ('%s', '%s')", g_strColor[client][TAG], g_strAuth[client]);
 		SQL_TQuery(g_hSQL, SQLQuery_Update, strQuery, _, DBPrio_High);
 	}
-	else
-	{
-		decl String:strQuery[256];
-		Format(strQuery, sizeof(strQuery), "UPDATE cccm_users SET tagcolor = '%s' WHERE auth = '%s'", g_strColor[iClient][TAG], g_strAuth[iClient]);
+	else {
+		char strQuery[256];
+		Format(strQuery, sizeof(strQuery), "UPDATE cccm_users SET tagcolor = '%s' WHERE auth = '%s'", g_strColor[client][TAG], g_strAuth[client]);
 		SQL_TQuery(g_hSQL, SQLQuery_Update, strQuery, _, DBPrio_Normal);
 	}
 }
 
-public SQLQuery_NameColor(Handle:hOwner, Handle:hQuery, const String:strError[], any:iClientId)
-{
-	new iClient = GetClientOfUserId(iClientId);
-	if(!IsValidClient(iClient))
+public void SQLQuery_NameColor(Handle owner, Handle hndl, const char[] strError, any data){
+	int client = GetClientOfUserId(data);
+	if (!IsValidClient(client))
 		return;
 
-	if(hOwner == INVALID_HANDLE || hQuery == INVALID_HANDLE)
-	{
+	if (owner == INVALID_HANDLE || hndl == INVALID_HANDLE){
 		LogError("SQL Error: %s", strError);
 		return;
 	}
 
-	if(SQL_GetRowCount(hQuery) == 0)
-	{
-		decl String:strQuery[256];
-		Format(strQuery, sizeof(strQuery), "INSERT INTO cccm_users (namecolor, auth) VALUES ('%s', '%s')", g_strColor[iClient][NAME], g_strAuth[iClient]);
+	if (SQL_GetRowCount(hndl) == 0){
+		char strQuery[256];
+		Format(strQuery, sizeof(strQuery), "INSERT INTO cccm_users (namecolor, auth) VALUES ('%s', '%s')", g_strColor[client][NAME], g_strAuth[client]);
 		SQL_TQuery(g_hSQL, SQLQuery_Update, strQuery, _, DBPrio_High);
 	}
-	else
-	{
-		decl String:strQuery[256];
-		Format(strQuery, sizeof(strQuery), "UPDATE cccm_users SET namecolor = '%s' WHERE auth = '%s'", g_strColor[iClient][NAME], g_strAuth[iClient]);
+	else {
+		char strQuery[256];
+		Format(strQuery, sizeof(strQuery), "UPDATE cccm_users SET namecolor = '%s' WHERE auth = '%s'", g_strColor[client][NAME], g_strAuth[client]);
 		SQL_TQuery(g_hSQL, SQLQuery_Update, strQuery, _, DBPrio_Normal);
 	}
 }
 
-public SQLQuery_ChatColor(Handle:hOwner, Handle:hQuery, const String:strError[], any:iClientId)
-{
-	new iClient = GetClientOfUserId(iClientId);
-	if(!IsValidClient(iClient))
+public void SQLQuery_ChatColor(Handle owner, Handle hndl, const char[] strError, any data){
+	int client = GetClientOfUserId(data);
+	if (!IsValidClient(client))
 		return;
 
-	if(hOwner == INVALID_HANDLE || hQuery == INVALID_HANDLE)
-	{
+	if (owner == INVALID_HANDLE || hndl == INVALID_HANDLE){
 		LogError("SQL Error: %s", strError);
 		return;
 	}
 
-	if(SQL_GetRowCount(hQuery) == 0)
-	{
-		decl String:strQuery[256];
-		Format(strQuery, sizeof(strQuery), "INSERT INTO cccm_users (chatcolor, auth) VALUES ('%s', '%s')", g_strColor[iClient][CHAT], g_strAuth[iClient]);
+	if (SQL_GetRowCount(hndl) == 0){
+		char strQuery[256];
+		Format(strQuery, sizeof(strQuery), "INSERT INTO cccm_users (chatcolor, auth) VALUES ('%s', '%s')", g_strColor[client][CHAT], g_strAuth[client]);
 		SQL_TQuery(g_hSQL, SQLQuery_Update, strQuery, _, DBPrio_High);
 	}
-	else
-	{
-		decl String:strQuery[256];
-		Format(strQuery, sizeof(strQuery), "UPDATE cccm_users SET chatcolor = '%s' WHERE auth = '%s'", g_strColor[iClient][CHAT], g_strAuth[iClient]);
+	else {
+		char strQuery[256];
+		Format(strQuery, sizeof(strQuery), "UPDATE cccm_users SET chatcolor = '%s' WHERE auth = '%s'", g_strColor[client][CHAT], g_strAuth[client]);
 		SQL_TQuery(g_hSQL, SQLQuery_Update, strQuery, _, DBPrio_Normal);
 	}
 }
 
-public SQLQuery_Update(Handle:hOwner, Handle:hQuery, const String:strError[], any:iData)
-{
-	if(hQuery == INVALID_HANDLE)
+public void SQLQuery_Update(Handle owner, Handle hndl, const char[] strError, any data){
+	if (hndl == INVALID_HANDLE)
 		LogError("SQL Error: %s", strError);
 }
-
 // ====[ STOCKS ]==============================================================
-stock bool:IsValidClient(iClient)
-{
-	if(iClient <= 0 || iClient > MaxClients || !IsClientInGame(iClient))
+stock bool IsValidClient(int client){
+	if (client <= 0 || client > MaxClients || !IsClientInGame(client))
 		return false;
 	return true;
 }
 
-stock bool:IsValidHex(const String:strHex[])
-{
-	if(strlen(strHex) == 6 && MatchRegex(g_hRegexHex, strHex))
+stock bool IsValidHex(const char[] hex){
+	if (strlen(hex) == 6 && MatchRegex(g_hRegexHex, hex))
 		return true;
 	return false;
 }
 
-stock bool:HasAdminFlag(iClient, const AdminFlag:iFlagList[16])
-{
-	new iFlags = GetUserFlagBits(iClient);
-	if(iFlags & ADMFLAG_ROOT)
+stock bool HasAdminFlag(int client, const AdminFlag flaglist[16]){
+	int flags = GetUserFlagBits(client);
+	if (flags & ADMFLAG_ROOT)
 		return true;
 
-	for(new i = 0; i < sizeof(iFlagList); i++)
-	{
-		if(iFlags & FlagToBit(iFlagList[i]))
+	for (int i = 0; i < sizeof(flaglist); i++)
+		if (flags & FlagToBit(flaglist[i]))
 			return true;
-	}
 	return false;
 }
