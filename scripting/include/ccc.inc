@@ -175,7 +175,7 @@ public SharedPlugin __pl_ccc = {
 };
 
 #if !defined REQUIRE_PLUGIN
-public __pl_ccc_SetNTVOptional(){
+public void __pl_ccc_SetNTVOptional(){
 	MarkNativeAsOptional("CCC_GetColor");
 	MarkNativeAsOptional("CCC_SetColor");
 	MarkNativeAsOptional("CCC_GetTag");

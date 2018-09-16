@@ -108,7 +108,7 @@ public SharedPlugin __pl_scp =
 };
 
 #if !defined REQUIRE_PLUGIN
-public __pl_scp_SetNTVOptional()
+public void __pl_scp_SetNTVOptional()
 {
 	MarkNativeAsOptional("GetMessageFlags");
 }
