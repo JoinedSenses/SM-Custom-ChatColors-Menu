@@ -11,7 +11,7 @@ enum {
 }
 
 #define PLUGIN_NAME "Custom Chat Colors Menu"
-#define PLUGIN_VERSION "2.5"
+#define PLUGIN_VERSION "2.6"
 #define MAX_COLORS 255
 #define ENABLEFLAG_TAG (1 << TAG)
 #define ENABLEFLAG_NAME (1 << NAME)
@@ -479,7 +479,7 @@ int MenuHandler_Settings(Menu menu, MenuAction action, int param1, int param2) {
 					Format(strQuery, sizeof(strQuery), "SELECT hidetag FROM cccm_users WHERE auth = '%s'", g_strAuth[param1]);
 					g_hSQL.Query(SQLQuery_HideTag, strQuery, GetClientUserId(param1), DBPrio_High);
 				}
-				menu.DisplayAt(param1, GetMenuSelectionPosition(), MENU_TIME_FOREVER);
+				menu.DisplayAt(param1, menu.Selection, MENU_TIME_FOREVER);
 			}
 			if (StrEqual(strBuffer, "Tag")) {
 				DisplayColorMenu(TagMenu, param1);
@@ -558,7 +558,7 @@ int MenuHandler_TagColor(Menu menu, MenuAction action, int param1, int param2) {
 				g_hSQL.Query(SQLQuery_TagColor, strQuery, GetClientUserId(param1), DBPrio_High);
 			}
 
-			menu.DisplayAt(param1, GetMenuSelectionPosition(), MENU_TIME_FOREVER);			
+			menu.DisplayAt(param1, menu.Selection, MENU_TIME_FOREVER);			
 		}
 		case MenuAction_DrawItem: {
 			char colorIndex[8];
@@ -602,7 +602,7 @@ int MenuHandler_NameColor(Menu menu, MenuAction action, int param1, int param2) 
 				g_hSQL.Query(SQLQuery_NameColor, strQuery, GetClientUserId(param1), DBPrio_High);
 			}
 
-			menu.DisplayAt(param1, GetMenuSelectionPosition(), MENU_TIME_FOREVER);			
+			menu.DisplayAt(param1, menu.Selection, MENU_TIME_FOREVER);			
 		}
 		case MenuAction_DrawItem: {
 			char colorIndex[8];
@@ -646,7 +646,7 @@ int MenuHandler_ChatColor(Menu menu, MenuAction action, int param1, int param2) 
 				g_hSQL.Query(SQLQuery_ChatColor, strQuery, GetClientUserId(param1), DBPrio_High);
 			}
 
-			menu.DisplayAt(param1, GetMenuSelectionPosition(), MENU_TIME_FOREVER);			
+			menu.DisplayAt(param1, menu.Selection, MENU_TIME_FOREVER);			
 		}
 		case MenuAction_DrawItem: {
 			char colorIndex[8];
@@ -734,11 +734,37 @@ void SQLQuery_Connect(Database db, const char[] error, any data) {
 
 	if (StrEqual(g_strSQLDriver, "mysql", false)) {
 		LogMessage("MySQL server configured. Variable saving enabled.");
-		g_hSQL.Query(SQLQuery_Update, "CREATE TABLE IF NOT EXISTS cccm_users (id INT(64) NOT NULL AUTO_INCREMENT, auth varchar(32) UNIQUE, hidetag varchar(1), tagcolor varchar(7), namecolor varchar(7), chatcolor varchar(7), PRIMARY KEY (id))", _, DBPrio_High);
+		g_hSQL.Query(
+			SQLQuery_Update
+			, "CREATE TABLE IF NOT EXISTS cccm_users"
+			... "("
+			... "id INT(64) NOT NULL AUTO_INCREMENT, "
+			... "auth VARCHAR(32) UNIQUE, "
+			... "hidetag VARCHAR(1), "
+			... "tagcolor VARCHAR(7), "
+			... "namecolor VARCHAR(7), "
+			... "chatcolor VARCHAR(7), "
+			... "PRIMARY KEY (id)"
+			... ")"
+			, _
+			, DBPrio_High
+		);
 	}
 	else if (StrEqual(g_strSQLDriver, "sqlite", false)) {
 		LogMessage("SQlite server configured. Variable saving enabled.");
-		g_hSQL.Query(SQLQuery_Update, "CREATE TABLE IF NOT EXISTS cccm_users (id INTERGER PRIMARY KEY, auth varchar(32) UNIQUE, hidetag varchar(1), tagcolor varchar(7), namecolor varchar(7), chatcolor varchar(7))", _, DBPrio_High);
+		g_hSQL.Query(
+			SQLQuery_Update
+			, "CREATE TABLE IF NOT EXISTS cccm_users "
+			... "("
+			... "id INTERGER PRIMARY KEY, "
+			... "auth varchar(32) UNIQUE, "
+			... "hidetag varchar(1), "
+			... "tagcolor varchar(7), "
+			... "namecolor varchar(7), "
+			... "chatcolor varchar(7))"
+			, _
+			, DBPrio_High
+		);
 	}
 	else {
 		LogMessage("Saved variable server not configured. Variable saving disabled.");
