@@ -761,7 +761,8 @@ void SQLQuery_Connect(Database db, const char[] error, any data) {
 			... "hidetag varchar(1), "
 			... "tagcolor varchar(7), "
 			... "namecolor varchar(7), "
-			... "chatcolor varchar(7))"
+			... "chatcolor varchar(7)"
+			... ")"
 			, _
 			, DBPrio_High
 		);
