@@ -11,7 +11,7 @@ enum {
 }
 
 #define PLUGIN_NAME "Custom Chat Colors Menu"
-#define PLUGIN_VERSION "2.6"
+#define PLUGIN_VERSION "2.7"
 #define MAX_COLORS 255
 #define ENABLEFLAG_TAG (1 << TAG)
 #define ENABLEFLAG_NAME (1 << NAME)
@@ -366,13 +366,13 @@ public Action Command_ChatColor(int client, int args) {
 	}
 
 	PrintToChat(client, "\x01[\x03CCC\x01] Chat color set to: \x07%s#%s\x01", strArg, strArg);
-	strcopy(g_strColor[client][TAG], sizeof(g_strColor[][]), strArg);
-	CCC_SetColor(client, CCC_TagColor, StringToInt(strArg, 16), false);
+	strcopy(g_strColor[client][CHAT], sizeof(g_strColor[][]), strArg);
+	CCC_SetColor(client, CCC_ChatColor, StringToInt(strArg, 16), false);
 
 	if (g_hSQL != null && IsClientAuthorized(client)) {
 		char strQuery[256];
 		Format(strQuery, sizeof(strQuery), "SELECT chatcolor FROM cccm_users WHERE auth = '%s'", g_strAuth[client]);
-		g_hSQL.Query(SQLQuery_TagColor, strQuery, GetClientUserId(client), DBPrio_High);
+		g_hSQL.Query(SQLQuery_ChatColor, strQuery, GetClientUserId(client), DBPrio_High);
 	}
 
 	return Plugin_Handled;
@@ -540,10 +540,6 @@ int MenuHandler_TagColor(Menu menu, MenuAction action, int param1, int param2) {
 				PrintToChat(param1, "\x01[\x03CCC\x01] Tag color \x03reset");
 				strcopy(g_strColor[param1][TAG], sizeof(g_strColor[][]), "");
 				CCC_ResetColor(param1, CCC_TagColor);
-
-				char strTag[7];
-				IntToString(CCC_GetColor(param1, CCC_TagColor), strTag, sizeof(strTag));
-				strcopy(g_strColor[param1][TAG], sizeof(g_strColor[][]), strTag);
 			}
 			else {
 				int iColorIndex = StringToInt(strBuffer);

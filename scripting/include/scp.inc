@@ -38,11 +38,11 @@ $Copyright: (c) Simple Plugins 2008-2009$
 #endif
 #define _scp_included
 
-#define MAXLENGTH_INPUT			128 	// Inclues \0 and is the size of the chat input box.
+#define MAXLENGTH_INPUT				128 	// Inclues \0 and is the size of the chat input box.
 #define MAXLENGTH_NAME				64		// This is backwords math to get compability.  Sourcemod has it set at 32, but there is room for more.
-#define MAXLENGTH_MESSAGE		256		// This is based upon the SDK and the length of the entire message, including tags, name, : etc.
+#define MAXLENGTH_MESSAGE			256		// This is based upon the SDK and the length of the entire message, including tags, name, : etc.
 
-#define CHATFLAGS_INVALID		0
+#define CHATFLAGS_INVALID			0
 #define CHATFLAGS_ALL				(1<<0)
 #define CHATFLAGS_TEAM				(1<<1)
 #define CHATFLAGS_SPEC				(1<<2)
@@ -64,7 +64,7 @@ $Copyright: (c) Simple Plugins 2008-2009$
  * @param 		message						The contents of the chat message (Byref)
  * @noreturn
  **********************************************************************/
-forward Action OnChatMessage(int& author, Handle recipients, char[] name, char[] message);
+forward Action OnChatMessage(int &author, ArrayList recipients, char[] name, char[] message);
 
 
 /**********************************************************************
@@ -80,7 +80,7 @@ forward Action OnChatMessage(int& author, Handle recipients, char[] name, char[]
  * @param 		message						The contents of the chat message (after any replacements)
  * @noreturn
  **********************************************************************/
-forward void OnChatMessage_Post(int author, Handle recipients, const char[] name, const char[] message);
+forward void OnChatMessage_Post(int author, ArrayList recipients, const char[] name, const char[] message);
 
 
 /**********************************************************************
@@ -89,15 +89,14 @@ forward void OnChatMessage_Post(int author, Handle recipients, const char[] name
  *
  * @return		The current type of chat message (see constants) 
  **********************************************************************/
- native int GetMessageFlags();
+native int GetMessageFlags();
 
  
  
 /**
 Shared plugin information
 **/
-public SharedPlugin __pl_scp = 
-{
+public SharedPlugin __pl_scp = {
 	name = "scp",
 	file = "simple-chatprocessor.smx",
 #if defined REQUIRE_PLUGIN
