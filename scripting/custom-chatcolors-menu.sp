@@ -713,6 +713,11 @@ void Config_Load() {
 	} while (keyvalues.GotoNextKey());
 	delete keyvalues;
 
+	delete MainMenu;
+	delete TagMenu;
+	delete NameMenu;
+	delete ChatMenu;
+
 	BuildMainMenu();
 	BuildTagMenu();
 	BuildNameMenu();
