@@ -198,33 +198,30 @@ void CheckSettings(int client) {
 		return;
 	}
 	SQL_LoadColors(client);
-	if (CheckCommandAccess(client, "sm_ccc_tag", ADMFLAG_GENERIC)) {
-		g_bAccessColor[client][TAG] = true;
-	}
-	if (CheckCommandAccess(client, "sm_ccc_name", ADMFLAG_GENERIC)) {
-		g_bAccessColor[client][NAME] = true;
-	}
-	if (CheckCommandAccess(client, "sm_ccc_chat", ADMFLAG_GENERIC)) {
-		g_bAccessColor[client][CHAT] = true;
-	}
-	if (CheckCommandAccess(client, "sm_ccc_hidetags", ADMFLAG_GENERIC)) {
-		g_bAccessHideTags[client] = true;
-	}
+	g_bAccessColor[client][TAG] = CheckCommandAccess(client, "sm_ccc_tag", ADMFLAG_GENERIC);
+	g_bAccessColor[client][NAME] = CheckCommandAccess(client, "sm_ccc_tag", ADMFLAG_GENERIC);
+	g_bAccessColor[client][CHAT] = CheckCommandAccess(client, "sm_ccc_tag", ADMFLAG_GENERIC);
+	g_bAccessHideTags[client] = CheckCommandAccess(client, "sm_ccc_hidetags", ADMFLAG_GENERIC);
 }
 
 public Action CCC_OnColor(int client, const char[] strMessage, CCC_ColorType type) {
-	if (type == CCC_TagColor && (!(g_iCvarEnabled & ENABLEFLAG_TAG) || g_bHideTag[client])) {
-		return Plugin_Handled;
+	switch (type) {
+		case CCC_TagColor: {
+			if (!(g_iCvarEnabled & ENABLEFLAG_TAG) || g_bHideTag[client]) {
+				return Plugin_Handled;
+			}
+		}
+		case CCC_NameColor: {
+			if (!(g_iCvarEnabled & ENABLEFLAG_NAME) || !IsValidHex(g_strColor[client][NAME])) {
+				return Plugin_Handled;
+			}
+		}
+		case CCC_ChatColor: {
+			if (!(g_iCvarEnabled & ENABLEFLAG_CHAT) || !IsValidHex(g_strColor[client][CHAT])) {
+				return Plugin_Handled;
+			}
+		}
 	}
-
-	if (type == CCC_NameColor && (!(g_iCvarEnabled & ENABLEFLAG_NAME) || !IsValidHex(g_strColor[client][NAME]))) {
-		return Plugin_Handled;
-	}
-
-	if (type == CCC_ChatColor && (!(g_iCvarEnabled & ENABLEFLAG_CHAT) || !IsValidHex(g_strColor[client][CHAT]))) {
-		return Plugin_Handled;
-	}
-
 	return Plugin_Continue;
 }
 
