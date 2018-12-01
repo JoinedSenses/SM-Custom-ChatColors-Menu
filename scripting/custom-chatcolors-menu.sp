@@ -8,6 +8,7 @@ enum {
 	TAG,
 	NAME,
 	CHAT,
+	PLUGIN
 }
 
 enum (<<= 1) {
@@ -42,7 +43,7 @@ bool
 	, g_bColorsLoaded[MAXPLAYERS+1]
 	, g_bColorAdminFlags[MAX_COLORS]
 	, g_bHideTag[MAXPLAYERS+1]
-	, g_bAccessColor[MAXPLAYERS+1][3]
+	, g_bAccessColor[MAXPLAYERS+1][4]
 	, g_bAccessHideTags[MAXPLAYERS+1]
 	, g_bLateLoad;
 char
@@ -74,7 +75,7 @@ public Plugin myinfo = {
 public void OnPluginStart() {
 	CreateConVar("sm_cccm_version", PLUGIN_VERSION, PLUGIN_NAME, FCVAR_SPONLY | FCVAR_DONTRECORD | FCVAR_NOTIFY);
 
-	g_hCvarEnabled = CreateConVar("sm_cccm_enabled", "7", "Enable Custom Chat Colors Menu (Add up the numbers to choose)\n0 = Disabled\n1 = Tag\n2 = Name\n4 = Chat", 0, true, 0.0, true, 7.0);
+	g_hCvarEnabled = CreateConVar("sm_cccm_enabled", "7", "Enable Custom Chat Colors Menu (Add up the numbers to choose)\n0 = Disabled\n1 = Tag\n2 = Name\n4 = Chat", FCVAR_NONE, true, 0.0, true, 7.0);
 	g_iCvarEnabled = g_hCvarEnabled.IntValue;
 	g_hCvarEnabled.AddChangeHook(OnConVarChange);
 
@@ -197,30 +198,31 @@ public void OnClientPostAdminCheck(int client) {
 }
 
 void CheckSettings(int client) {
-	if (!CheckCommandAccess(client, "sm_ccc", ADMFLAG_GENERIC)) {
-		return;
+	bool access;
+	if ((access = CheckCommandAccess(client, "sm_ccc", ADMFLAG_GENERIC))) {
+		SQL_LoadColors(client);
 	}
-	SQL_LoadColors(client);
-	g_bAccessColor[client][TAG] = CheckCommandAccess(client, "sm_ccc_tag", ADMFLAG_GENERIC);
-	g_bAccessColor[client][NAME] = CheckCommandAccess(client, "sm_ccc_tag", ADMFLAG_GENERIC);
-	g_bAccessColor[client][CHAT] = CheckCommandAccess(client, "sm_ccc_tag", ADMFLAG_GENERIC);
-	g_bAccessHideTags[client] = CheckCommandAccess(client, "sm_ccc_hidetags", ADMFLAG_GENERIC);
+	g_bAccessColor[client][PLUGIN] = access;
+	g_bAccessColor[client][TAG] = access && CheckCommandAccess(client, "sm_ccc_tag", ADMFLAG_GENERIC);
+	g_bAccessColor[client][NAME] = access && CheckCommandAccess(client, "sm_ccc_name", ADMFLAG_GENERIC);
+	g_bAccessColor[client][CHAT] = access && CheckCommandAccess(client, "sm_ccc_chat", ADMFLAG_GENERIC);
+	g_bAccessHideTags[client] = access && CheckCommandAccess(client, "sm_ccc_hidetags", ADMFLAG_GENERIC);
 }
 
 public Action CCC_OnColor(int client, const char[] strMessage, CCC_ColorType type) {
 	switch (type) {
 		case CCC_TagColor: {
-			if (!(g_iCvarEnabled & ENABLEFLAG_TAG) || g_bHideTag[client]) {
+			if (!(g_iCvarEnabled & ENABLEFLAG_TAG) || !g_bAccessColor[client][PLUGIN] || g_bHideTag[client]) {
 				return Plugin_Handled;
 			}
 		}
 		case CCC_NameColor: {
-			if (!(g_iCvarEnabled & ENABLEFLAG_NAME) || !IsValidHex(g_strColor[client][NAME])) {
+			if (!(g_iCvarEnabled & ENABLEFLAG_NAME) || !g_bAccessColor[client][PLUGIN] || !IsValidHex(g_strColor[client][NAME])) {
 				return Plugin_Handled;
 			}
 		}
 		case CCC_ChatColor: {
-			if (!(g_iCvarEnabled & ENABLEFLAG_CHAT) || !IsValidHex(g_strColor[client][CHAT])) {
+			if (!(g_iCvarEnabled & ENABLEFLAG_CHAT) || !g_bAccessColor[client][PLUGIN] || !IsValidHex(g_strColor[client][CHAT])) {
 				return Plugin_Handled;
 			}
 		}
@@ -502,17 +504,17 @@ int MenuHandler_Settings(Menu menu, MenuAction action, int param1, int param2) {
 			menu.GetItem(param2, item, sizeof(item));
 			if (StrEqual(item, "Tag")) {
 				if (!((g_iCvarEnabled & ENABLEFLAG_TAG) && g_bAccessColor[param1][TAG])) {
-					return ITEMDRAW_DISABLED;
+					return ITEMDRAW_IGNORE;
 				}				
 			}
 			if (StrEqual(item, "Name")) {
 				if (!((g_iCvarEnabled & ENABLEFLAG_NAME) && g_bAccessColor[param1][NAME])) {
-					return ITEMDRAW_DISABLED;
+					return ITEMDRAW_IGNORE;
 				}
 			}
 			if (StrEqual(item, "Chat")) {
 				if (!((g_iCvarEnabled & ENABLEFLAG_CHAT) && g_bAccessColor[param1][CHAT])) {
-					return ITEMDRAW_DISABLED;
+					return ITEMDRAW_IGNORE;
 				}
 			}
 			return ITEMDRAW_DEFAULT;
