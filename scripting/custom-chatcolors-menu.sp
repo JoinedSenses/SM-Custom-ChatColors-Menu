@@ -11,7 +11,7 @@ enum {
 }
 
 #define PLUGIN_NAME "Custom Chat Colors Menu"
-#define PLUGIN_VERSION "2.7"
+#define PLUGIN_VERSION "2.7.1"
 #define MAX_COLORS 255
 #define ENABLEFLAG_TAG (1 << TAG)
 #define ENABLEFLAG_NAME (1 << NAME)
@@ -241,7 +241,8 @@ public Action Command_Reload(int client, int args) {
 	ReplyToCommand(client, "\x01[\x03CCC\x01] Configuration file %s reloaded.", g_strConfigFile);
 	for (int i = 1; i <= MaxClients; i++) {
 		if (IsClientInGame(i)) {
-			CheckSettings(i);
+			OnClientConnected(i);
+			OnClientPostAdminCheck(i);
 		}
 	}
 	return Plugin_Handled;
