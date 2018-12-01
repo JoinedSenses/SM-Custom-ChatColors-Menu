@@ -18,7 +18,7 @@ enum (<<= 1) {
 }
 
 #define PLUGIN_NAME "Custom Chat Colors Menu"
-#define PLUGIN_VERSION "2.7.1"
+#define PLUGIN_VERSION "2.8"
 #define MAX_COLORS 255
 
 Menu
