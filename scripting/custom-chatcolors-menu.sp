@@ -10,12 +10,15 @@ enum {
 	CHAT,
 }
 
+enum (<<= 1) {
+	ENABLEFLAG_TAG = 1,
+	ENABLEFLAG_NAME,
+	ENABLEFLAG_CHAT
+}
+
 #define PLUGIN_NAME "Custom Chat Colors Menu"
 #define PLUGIN_VERSION "2.7.1"
 #define MAX_COLORS 255
-#define ENABLEFLAG_TAG (1 << TAG)
-#define ENABLEFLAG_NAME (1 << NAME)
-#define ENABLEFLAG_CHAT (1 << CHAT)
 
 Menu
 	  MainMenu
