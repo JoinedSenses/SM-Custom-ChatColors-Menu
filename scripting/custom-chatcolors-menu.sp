@@ -242,6 +242,11 @@ public Action Command_Color(int client, int args) {
 public Action Command_Reload(int client, int args) {
 	Config_Load();
 	ReplyToCommand(client, "\x01[\x03CCC\x01] Configuration file %s reloaded.", g_strConfigFile);
+	for (int i = 1; i <= MaxClients; i++) {
+		if (IsClientInGame(i)) {
+			CheckSettings(i);
+		}
+	}
 	return Plugin_Handled;
 }
 
