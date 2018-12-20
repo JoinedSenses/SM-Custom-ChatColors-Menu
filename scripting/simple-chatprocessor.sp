@@ -189,10 +189,10 @@ public Action OnSayText2(UserMsg msg_id, BfRead msg, const int[] players, int pl
 	bool bProtobuf = (CanTestFeatures() && GetFeatureStatus(FeatureType_Native, "GetUserMessageType") == FeatureStatus_Available && GetUserMessageType() == UM_Protobuf);
 	int cpSender;
 	if (bProtobuf) {
-		cpSender = PbReadInt(msg, "ent_idx");
+		cpSender = UserMessageToProtobuf(msg).ReadInt("ent_idx");
 	}
 	else {
-		cpSender = BfReadByte(msg);
+		cpSender = msg.ReadByte();
 	}
 
 	if (cpSender == SENDER_WORLD) {
@@ -204,10 +204,10 @@ public Action OnSayText2(UserMsg msg_id, BfRead msg, const int[] players, int pl
 	*/
 	bool bChat;
 	if (bProtobuf) {
-		bChat = PbReadBool(msg, "chat");
+		bChat = UserMessageToProtobuf(msg).ReadBool("chat");
 	}
 	else {
-		bChat = (BfReadByte(msg) ? true : false);
+		bChat = (msg.ReadByte() ? true : false);
 	}
 
 	/**
@@ -217,10 +217,10 @@ public Action OnSayText2(UserMsg msg_id, BfRead msg, const int[] players, int pl
 	char cpTranslationName[32];
 	int buffer;
 	if (bProtobuf) {
-		PbReadString(msg, "msg_name", cpTranslationName, sizeof(cpTranslationName));
+		UserMessageToProtobuf(msg).ReadString("msg_name", cpTranslationName, sizeof(cpTranslationName));
 	}
 	else {
-		BfReadString(msg, cpTranslationName, sizeof(cpTranslationName));
+		msg.ReadString(cpTranslationName, sizeof(cpTranslationName));
 	}
 
 	if (!g_hChatFormats.GetValue(cpTranslationName, buffer)) {
@@ -250,10 +250,10 @@ public Action OnSayText2(UserMsg msg_id, BfRead msg, const int[] players, int pl
 	*/
 	char cpSender_Name[MAXLENGTH_NAME];
 	if (bProtobuf) {
-		PbReadString(msg, "params", cpSender_Name, sizeof(cpSender_Name), 0);
+		UserMessageToProtobuf(msg).ReadString("params", cpSender_Name, sizeof(cpSender_Name), 0);
 	}
 	else if (BfGetNumBytesLeft(msg)) {
-		BfReadString(msg, cpSender_Name, sizeof(cpSender_Name));
+		msg.ReadString(cpSender_Name, sizeof(cpSender_Name));
 	}
 
 	/**
@@ -261,10 +261,10 @@ public Action OnSayText2(UserMsg msg_id, BfRead msg, const int[] players, int pl
 	*/
 	char cpMessage[MAXLENGTH_INPUT];
 	if (bProtobuf) {
-		PbReadString(msg, "params", cpMessage, sizeof(cpMessage));
+		UserMessageToProtobuf(msg).ReadString("params", cpMessage, sizeof(cpMessage), 1);
 	}
 	else if (BfGetNumBytesLeft(msg)) {
-		BfReadString(msg, cpMessage, sizeof(cpMessage));
+		msg.ReadString(cpMessage, sizeof(cpMessage));
 	}
 
 	/**
@@ -364,10 +364,10 @@ public Action OnSayText(UserMsg msg_id, BfRead msg, const int[] players, int pla
 	bool bProtobuf = (CanTestFeatures() && GetFeatureStatus(FeatureType_Native, "GetUserMessageType") == FeatureStatus_Available && GetUserMessageType() == UM_Protobuf);
 	int cpSender;
 	if (bProtobuf) {
-		cpSender = PbReadInt(msg, "ent_idx");
+		cpSender = UserMessageToProtobuf(msg).ReadInt("ent_idx");
 	}
 	else {
-		cpSender = BfReadByte(msg);
+		cpSender = msg.ReadByte();
 	}
 
 	if (cpSender == SENDER_WORLD) {
@@ -379,17 +379,17 @@ public Action OnSayText(UserMsg msg_id, BfRead msg, const int[] players, int pla
 	*/
 	char message[MAXLENGTH_INPUT];
 	if (bProtobuf) {
-		PbReadString(msg, "text", message, sizeof(message));
+		UserMessageToProtobuf(msg).ReadString("text", message, sizeof(message));
 	}
 	else {
-		BfReadString(msg, message, sizeof(message));
+		msg.ReadString(message, sizeof(message));
 	}
 
 	/**
 	Get the chat bool.  This determines if sent to console as well as chat
 	*/
 	if (!bProtobuf) {
-		BfReadBool(msg);
+		msg.ReadBool();
 	}
 
 	/**
@@ -537,19 +537,21 @@ public void OnGameFrame() {
 			Handle msg = StartMessage("SayText2", clients, numClientsFinish, USERMSG_RELIABLE | USERMSG_BLOCKHOOKS);
 
 			if (pack.ReadCell()) {
-				PbSetInt(msg, "ent_idx", client);
-				PbSetBool(msg, "chat", bChat);
+				Protobuf pb = UserMessageToProtobuf(msg);
+				pb.SetInt("ent_idx", client);
+				pb.SetBool("chat", bChat);
 
-				PbSetString(msg, "msg_name", sTranslation);
-				PbAddString(msg, "params", "");
-				PbAddString(msg, "params", "");
-				PbAddString(msg, "params", "");
-				PbAddString(msg, "params", "");
+				pb.SetString("msg_name", sTranslation);
+				pb.AddString("params", "");
+				pb.AddString("params", "");
+				pb.AddString("params", "");
+				pb.AddString("params", "");
 			}
 			else {
-				BfWriteByte(msg, client);
-				BfWriteByte(msg, bChat);
-				BfWriteString(msg, sTranslation);
+				BfWrite buf = UserMessageToBfWrite(msg);
+				buf.WriteByte(client);
+				buf.WriteByte(bChat);
+				buf.WriteString(sTranslation);
 			}
 			EndMessage();
 		}
