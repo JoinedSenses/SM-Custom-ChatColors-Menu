@@ -94,7 +94,7 @@ char g_sGameName[eMods][32] = {
 };
 StringMap
 	  g_hChatFormats;
-Handle
+GlobalForward
 	  g_fwdOnChatMessage
 	, g_fwdOnChatMessagePost;
 bool
@@ -176,8 +176,8 @@ public void OnPluginStart() {
 	/**
 	Create the global forwards for other plugins
 	*/
-	g_fwdOnChatMessage = CreateGlobalForward("OnChatMessage", ET_Hook, Param_CellByRef, Param_Cell, Param_String, Param_String);
-	g_fwdOnChatMessagePost = CreateGlobalForward("OnChatMessage_Post", ET_Ignore, Param_Cell, Param_Cell, Param_String, Param_String);
+	g_fwdOnChatMessage = new GlobalForward("OnChatMessage", ET_Hook, Param_CellByRef, Param_Cell, Param_String, Param_String);
+	g_fwdOnChatMessagePost = new GlobalForward("OnChatMessage_Post", ET_Ignore, Param_Cell, Param_Cell, Param_String, Param_String);
 
 	g_hDPArray = new ArrayList();
 }
@@ -207,7 +207,7 @@ public Action OnSayText2(UserMsg msg_id, BfRead msg, const int[] players, int pl
 		bChat = UserMessageToProtobuf(msg).ReadBool("chat");
 	}
 	else {
-		bChat = (msg.ReadByte() ? true : false);
+		bChat = !!msg.ReadByte();
 	}
 
 	/**

@@ -2,7 +2,7 @@
 #pragma newdecls required
 #include <sourcemod>
 #include <scp>
-#define PLUGIN_VERSION		"3.2.0"
+#define PLUGIN_VERSION		"3.2.1"
 
 public Plugin myinfo = {
 	name        = "[Source 2013] Custom Chat Colors",
@@ -12,26 +12,26 @@ public Plugin myinfo = {
 	url         = "http://www.doctormckay.com"
 };
 
-Handle
-	  colorForward
-	, nameForward
-	, tagForward
-	, applicationForward
-	, messageForward
-	, preLoadedForward
-	, loadedForward
-	, configReloadedForward;
+GlobalForward
+	  g_gfColorForward
+	, g_gfNameForward
+	, g_gfTagForward
+	, g_gfApplicationForward
+	, g_gfMessageForward
+	, g_gfPreLoadedForward
+	, g_gfLoadedForward
+	, g_gfConfigReloadedForward;
 KeyValues
-	  configFile;
+	  g_kvConfigFile;
 char
-	  tag[MAXPLAYERS + 1][32]
-	, tagColor[MAXPLAYERS + 1][12]
-	, usernameColor[MAXPLAYERS + 1][12]
-	, chatColor[MAXPLAYERS + 1][12]
-	, defaultTag[MAXPLAYERS + 1][32]
-	, defaultTagColor[MAXPLAYERS + 1][12]
-	, defaultUsernameColor[MAXPLAYERS + 1][12]
-	, defaultChatColor[MAXPLAYERS + 1][12];
+	  g_sTag[MAXPLAYERS+1][32]
+	, g_sTagColor[MAXPLAYERS+1][12]
+	, g_sUsernameColor[MAXPLAYERS+1][12]
+	, g_sChatColor[MAXPLAYERS+1][12]
+	, g_sDefaultTag[MAXPLAYERS+1][32]
+	, g_sDefaultTagColor[MAXPLAYERS+1][12]
+	, g_sDefaultUsernameColor[MAXPLAYERS+1][12]
+	, g_sDefaultChatColor[MAXPLAYERS+1][12];
 
 enum CCC_ColorType {
 	CCC_TagColor,
@@ -45,7 +45,7 @@ enum CCC_ColorType {
 #define COLOR_TEAM -4
 
 #define UPDATE_FILE "chatcolors.txt"
-#define CONVAR_PREFIX	"custom_chat_colors"
+#define CONVAR_PREFIX "custom_chat_colors"
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max){
 	MarkNativeAsOptional("Updater_AddPlugin");
@@ -63,25 +63,25 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 public void OnPluginStart(){
 	RegAdminCmd("sm_reloadccc", Command_ReloadConfig, ADMFLAG_CONFIG, "Reloads Custom Chat Colors config file");
-	colorForward = CreateGlobalForward("CCC_OnChatColor", ET_Event, Param_Cell);
-	nameForward = CreateGlobalForward("CCC_OnNameColor", ET_Event, Param_Cell);
-	tagForward = CreateGlobalForward("CCC_OnTagApplied", ET_Event, Param_Cell);
-	applicationForward = CreateGlobalForward("CCC_OnColor", ET_Event, Param_Cell, Param_String, Param_Cell);
-	messageForward = CreateGlobalForward("CCC_OnChatMessage", ET_Ignore, Param_Cell, Param_String, Param_Cell);
-	preLoadedForward = CreateGlobalForward("CCC_OnUserConfigPreLoaded", ET_Event, Param_Cell);
-	loadedForward = CreateGlobalForward("CCC_OnUserConfigLoaded", ET_Ignore, Param_Cell);
-	configReloadedForward = CreateGlobalForward("CCC_OnConfigReloaded", ET_Ignore);
+	g_gfColorForward = new GlobalForward("CCC_OnChatColor", ET_Event, Param_Cell);
+	g_gfNameForward = new GlobalForward("CCC_OnNameColor", ET_Event, Param_Cell);
+	g_gfTagForward = new GlobalForward("CCC_OnTagApplied", ET_Event, Param_Cell);
+	g_gfApplicationForward = new GlobalForward("CCC_OnColor", ET_Event, Param_Cell, Param_String, Param_Cell);
+	g_gfMessageForward = new GlobalForward("CCC_OnChatMessage", ET_Ignore, Param_Cell, Param_String, Param_Cell);
+	g_gfPreLoadedForward = new GlobalForward("CCC_OnUserConfigPreLoaded", ET_Event, Param_Cell);
+	g_gfLoadedForward = new GlobalForward("CCC_OnUserConfigLoaded", ET_Ignore, Param_Cell);
+	g_gfConfigReloadedForward = new GlobalForward("CCC_OnConfigReloaded", ET_Ignore);
 	LoadConfig();
 }
 
 void LoadConfig(){
-	if (configFile != null) {
-		delete configFile;
+	if (g_kvConfigFile != null) {
+		delete g_kvConfigFile;
 	}
-	configFile = new KeyValues("admin_colors");
+	g_kvConfigFile = new KeyValues("admin_colors");
 	char path[64];
 	BuildPath(Path_SM, path, sizeof(path), "configs/custom-chatcolors.cfg");
-	if (!configFile.ImportFromFile(path)) {
+	if (!g_kvConfigFile.ImportFromFile(path)) {
 		SetFailState("Config file missing");
 	}
 	for (int i = 1; i <= MaxClients; i++){
@@ -97,21 +97,21 @@ public Action Command_ReloadConfig(int client, int args){
 	LoadConfig();
 	LogAction(client, -1, "Reloaded Custom Chat Colors config file");
 	ReplyToCommand(client, "[CCC] Reloaded config file.");
-	Call_StartForward(configReloadedForward);
+	Call_StartForward(g_gfConfigReloadedForward);
 	Call_Finish();
 	return Plugin_Handled;
 }
 
 void ClearValues(int client){
-	Format(tag[client], sizeof(tag[]), "");
-	Format(tagColor[client], sizeof(tagColor[]), "");
-	Format(usernameColor[client], sizeof(usernameColor[]), "");
-	Format(chatColor[client], sizeof(chatColor[]), "");
+	Format(g_sTag[client], sizeof(g_sTag[]), "");
+	Format(g_sTagColor[client], sizeof(g_sTagColor[]), "");
+	Format(g_sUsernameColor[client], sizeof(g_sUsernameColor[]), "");
+	Format(g_sChatColor[client], sizeof(g_sChatColor[]), "");
 
-	Format(defaultTag[client], sizeof(defaultTag[]), "");
-	Format(defaultTagColor[client], sizeof(defaultTagColor[]), "");
-	Format(defaultUsernameColor[client], sizeof(defaultUsernameColor[]), "");
-	Format(defaultChatColor[client], sizeof(defaultChatColor[]), "");
+	Format(g_sDefaultTag[client], sizeof(g_sDefaultTag[]), "");
+	Format(g_sDefaultTagColor[client], sizeof(g_sDefaultTagColor[]), "");
+	Format(g_sDefaultUsernameColor[client], sizeof(g_sDefaultUsernameColor[]), "");
+	Format(g_sDefaultChatColor[client], sizeof(g_sDefaultChatColor[]), "");
 }
 
 public void OnClientConnected(int client){
@@ -131,10 +131,10 @@ public void OnClientPostAdminCheck(int client){
 	// check the Steam ID first
 	char auth[32];
 	GetClientAuthId(client, AuthId_Steam2, auth, sizeof(auth));
-	configFile.Rewind();
-	if (!configFile.JumpToKey(auth)){
-		configFile.Rewind();
-		configFile.GotoFirstSubKey();
+	g_kvConfigFile.Rewind();
+	if (!g_kvConfigFile.JumpToKey(auth)){
+		g_kvConfigFile.Rewind();
+		g_kvConfigFile.GotoFirstSubKey();
 
 		AdminId admin = GetUserAdmin(client);
 		AdminFlag flag;
@@ -143,8 +143,8 @@ public void OnClientPostAdminCheck(int client){
 		bool found = false;
 
 		do {
-			configFile.GetSectionName(section, sizeof(section));
-			configFile.GetString("flag", configFlag, sizeof(configFlag));
+			g_kvConfigFile.GetSectionName(section, sizeof(section));
+			g_kvConfigFile.GetString("flag", configFlag, sizeof(configFlag));
 			if (strlen(configFlag) > 1) {
 				LogError("Multiple flags given in section \"%s\", which is not allowed. Using first character.", section);
 			}
@@ -163,7 +163,7 @@ public void OnClientPostAdminCheck(int client){
 				break;
 			}
 		}
-		while (configFile.GotoNextKey());
+		while (g_kvConfigFile.GotoNextKey());
 		if (!found) {
 			return;
 		}
@@ -172,10 +172,10 @@ public void OnClientPostAdminCheck(int client){
 	char clientNameColor[12];
 	char clientChatColor[12];
 
-	configFile.GetString("tag", tag[client], sizeof(tag[]));
-	configFile.GetString("tagcolor", clientTagColor, sizeof(clientTagColor));
-	configFile.GetString("namecolor", clientNameColor, sizeof(clientNameColor));
-	configFile.GetString("textcolor", clientChatColor, sizeof(clientChatColor));
+	g_kvConfigFile.GetString("tag", g_sTag[client], sizeof(g_sTag[]));
+	g_kvConfigFile.GetString("tagcolor", clientTagColor, sizeof(clientTagColor));
+	g_kvConfigFile.GetString("namecolor", clientNameColor, sizeof(clientNameColor));
+	g_kvConfigFile.GetString("textcolor", clientChatColor, sizeof(clientChatColor));
 
 	ReplaceString(clientTagColor, sizeof(clientTagColor), "#", "");
 	ReplaceString(clientNameColor, sizeof(clientNameColor), "#", "");
@@ -186,38 +186,38 @@ public void OnClientPostAdminCheck(int client){
 	int chatLen = strlen(clientChatColor);
 
 	if (tagLen == 6 || tagLen == 8 || StrEqual(clientTagColor, "T", false) || StrEqual(clientTagColor, "G", false) || StrEqual(clientTagColor, "O", false)) {
-		strcopy(tagColor[client], sizeof(tagColor[]), clientTagColor);
+		strcopy(g_sTagColor[client], sizeof(g_sTagColor[]), clientTagColor);
 	}
 	if (nameLen == 6 || nameLen == 8 || StrEqual(clientNameColor, "G", false) || StrEqual(clientNameColor, "O", false)) {
-		strcopy(usernameColor[client], sizeof(usernameColor[]), clientNameColor);
+		strcopy(g_sUsernameColor[client], sizeof(g_sUsernameColor[]), clientNameColor);
 	}
 	if (chatLen == 6 || chatLen == 8 || StrEqual(clientChatColor, "T", false) || StrEqual(clientChatColor, "G", false) || StrEqual(clientChatColor, "O", false)) {
-		strcopy(chatColor[client], sizeof(chatColor[]), clientChatColor);
+		strcopy(g_sChatColor[client], sizeof(g_sChatColor[]), clientChatColor);
 	}
 
-	strcopy(defaultTag[client], sizeof(defaultTag[]), tag[client]);
-	strcopy(defaultTagColor[client], sizeof(defaultTagColor[]), tagColor[client]);
-	strcopy(defaultUsernameColor[client], sizeof(defaultUsernameColor[]), usernameColor[client]);
-	strcopy(defaultChatColor[client], sizeof(defaultChatColor[]), chatColor[client]);
+	strcopy(g_sDefaultTag[client], sizeof(g_sDefaultTag[]), g_sTag[client]);
+	strcopy(g_sDefaultTagColor[client], sizeof(g_sDefaultTagColor[]), g_sTagColor[client]);
+	strcopy(g_sDefaultUsernameColor[client], sizeof(g_sDefaultUsernameColor[]), g_sUsernameColor[client]);
+	strcopy(g_sDefaultChatColor[client], sizeof(g_sDefaultChatColor[]), g_sChatColor[client]);
 
-	Call_StartForward(loadedForward);
+	Call_StartForward(g_gfLoadedForward);
 	Call_PushCell(client);
 	Call_Finish();
 }
 
-public Action OnChatMessage(int &author, Handle recipients, char[] name, char[] message) {
+public Action OnChatMessage(int &author, ArrayList recipients, char[] name, char[] message) {
 	if (CheckForward(author, message, CCC_NameColor)){
-		if (StrEqual(usernameColor[author], "G", false)) {
+		if (StrEqual(g_sUsernameColor[author], "G", false)) {
 			Format(name, MAXLENGTH_NAME, "\x04%s", name);
 		}
-		else if (StrEqual(usernameColor[author], "O", false)) {
+		else if (StrEqual(g_sUsernameColor[author], "O", false)) {
 			Format(name, MAXLENGTH_NAME, "\x05%s", name);
 		}
-		else if (strlen(usernameColor[author]) == 6) {
-			Format(name, MAXLENGTH_NAME, "\x07%s%s", usernameColor[author], name);
+		else if (strlen(g_sUsernameColor[author]) == 6) {
+			Format(name, MAXLENGTH_NAME, "\x07%s%s", g_sUsernameColor[author], name);
 		}
-		else if (strlen(usernameColor[author]) == 8) {
-			Format(name, MAXLENGTH_NAME, "\x08%s%s", usernameColor[author], name);
+		else if (strlen(g_sUsernameColor[author]) == 8) {
+			Format(name, MAXLENGTH_NAME, "\x08%s%s", g_sUsernameColor[author], name);
 		}
 		else {
 			Format(name, MAXLENGTH_NAME, "\x03%s", name);
@@ -227,24 +227,24 @@ public Action OnChatMessage(int &author, Handle recipients, char[] name, char[] 
 		Format(name, MAXLENGTH_NAME, "\x03%s", name);
 	} // team color by default!
 	if (CheckForward(author, message, CCC_TagColor)){
-		if (strlen(tag[author]) > 0){
-			if (StrEqual(tagColor[author], "T", false)) {
-				Format(name, MAXLENGTH_NAME, "\x03%s%s", tag[author], name);
+		if (strlen(g_sTag[author]) > 0){
+			if (StrEqual(g_sTagColor[author], "T", false)) {
+				Format(name, MAXLENGTH_NAME, "\x03%s%s", g_sTag[author], name);
 			}
-			else if (StrEqual(tagColor[author], "G", false)) {
-				Format(name, MAXLENGTH_NAME, "\x04%s%s", tag[author], name);
+			else if (StrEqual(g_sTagColor[author], "G", false)) {
+				Format(name, MAXLENGTH_NAME, "\x04%s%s", g_sTag[author], name);
 			}
-			else if (StrEqual(tagColor[author], "O", false)) {
-				Format(name, MAXLENGTH_NAME, "\x05%s%s", tag[author], name);
+			else if (StrEqual(g_sTagColor[author], "O", false)) {
+				Format(name, MAXLENGTH_NAME, "\x05%s%s", g_sTag[author], name);
 			}
-			else if (strlen(tagColor[author]) == 6) {
-				Format(name, MAXLENGTH_NAME, "\x07%s%s%s", tagColor[author], tag[author], name);
+			else if (strlen(g_sTagColor[author]) == 6) {
+				Format(name, MAXLENGTH_NAME, "\x07%s%s%s", g_sTagColor[author], g_sTag[author], name);
 			}
-			else if (strlen(tagColor[author]) == 8) {
-				Format(name, MAXLENGTH_NAME, "\x08%s%s%s", tagColor[author], tag[author], name);
+			else if (strlen(g_sTagColor[author]) == 8) {
+				Format(name, MAXLENGTH_NAME, "\x08%s%s%s", g_sTagColor[author], g_sTag[author], name);
 			}
 			else {
-				Format(name, MAXLENGTH_NAME, "\x01%s%s", tag[author], name);
+				Format(name, MAXLENGTH_NAME, "\x01%s%s", g_sTag[author], name);
 			}
 		}
 	}
@@ -252,21 +252,21 @@ public Action OnChatMessage(int &author, Handle recipients, char[] name, char[] 
 	// MAXLENGTH_MESSAGE = maximum characters in a chat message, including name. Subtract the characters in the name, and 5 to account for the colon, spaces, and null terminator
 	int MaxMessageLength = MAXLENGTH_MESSAGE - strlen(name) - 5;
 
-	if (strlen(chatColor[author]) > 0 && CheckForward(author, message, CCC_ChatColor)){
-		if (StrEqual(chatColor[author], "T", false)) {
+	if (strlen(g_sChatColor[author]) > 0 && CheckForward(author, message, CCC_ChatColor)){
+		if (StrEqual(g_sChatColor[author], "T", false)) {
 			Format(message, MaxMessageLength, "\x03%s", message);
 		}
-		else if (StrEqual(chatColor[author], "G", false)) {
+		else if (StrEqual(g_sChatColor[author], "G", false)) {
 			Format(message, MaxMessageLength, "\x04%s", message);
 		}
-		else if (StrEqual(chatColor[author], "O", false)) {
+		else if (StrEqual(g_sChatColor[author], "O", false)) {
 			Format(message, MaxMessageLength, "\x05%s", message);
 		}
-		else if (strlen(chatColor[author]) == 6) {
-			Format(message, MaxMessageLength, "\x07%s%s", chatColor[author], message);
+		else if (strlen(g_sChatColor[author]) == 6) {
+			Format(message, MaxMessageLength, "\x07%s%s", g_sChatColor[author], message);
 		}
-		else if (strlen(chatColor[author]) == 8) {
-			Format(message, MaxMessageLength, "\x08%s%s", chatColor[author], message);
+		else if (strlen(g_sChatColor[author]) == 8) {
+			Format(message, MaxMessageLength, "\x08%s%s", g_sChatColor[author], message);
 		}
 	}
 	char game[64];
@@ -275,7 +275,7 @@ public Action OnChatMessage(int &author, Handle recipients, char[] name, char[] 
 		Format(name, MAXLENGTH_NAME, "\x01\x0B%s", name);
 	}
 
-	Call_StartForward(messageForward);
+	Call_StartForward(g_gfMessageForward);
 	Call_PushCell(author);
 	Call_PushStringEx(message, MaxMessageLength, SM_PARAM_STRING_UTF8|SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
 	Call_PushCell(MaxMessageLength);
@@ -286,7 +286,7 @@ public Action OnChatMessage(int &author, Handle recipients, char[] name, char[] 
 
 bool CheckForward(int author, const char[] message, CCC_ColorType type){
 	Action result = Plugin_Continue;
-	Call_StartForward(applicationForward);
+	Call_StartForward(g_gfApplicationForward);
 	Call_PushCell(author);
 	Call_PushString(message);
 	Call_PushCell(type);
@@ -313,7 +313,7 @@ bool CheckForward(int author, const char[] message, CCC_ColorType type){
 
 bool ColorForward(int author){
 	Action result = Plugin_Continue;
-	Call_StartForward(colorForward);
+	Call_StartForward(g_gfColorForward);
 	Call_PushCell(author);
 	Call_Finish(result);
 	if (result >= Plugin_Handled) {
@@ -325,7 +325,7 @@ bool ColorForward(int author){
 
 bool NameForward(int author){
 	Action result = Plugin_Continue;
-	Call_StartForward(nameForward);
+	Call_StartForward(g_gfNameForward);
 	Call_PushCell(author);
 	Call_Finish(result);
 	if (result >= Plugin_Handled) {
@@ -337,7 +337,7 @@ bool NameForward(int author){
 
 bool TagForward(int author){
 	Action result = Plugin_Continue;
-	Call_StartForward(tagForward);
+	Call_StartForward(g_gfTagForward);
 	Call_PushCell(author);
 	Call_Finish(result);
 	if (result >= Plugin_Handled) {
@@ -349,7 +349,7 @@ bool TagForward(int author){
 
 bool ConfigForward(int client){
 	Action result = Plugin_Continue;
-	Call_StartForward(preLoadedForward);
+	Call_StartForward(g_gfPreLoadedForward);
 	Call_PushCell(client);
 	Call_Finish(result);
 	if (result >= Plugin_Handled) {
@@ -367,21 +367,21 @@ public int Native_GetColor(Handle plugin, int numParams){
 	}
 	switch(GetNativeCell(2)){
 		case CCC_TagColor: {
-			if (StrEqual(tagColor[client], "T", false)){
+			if (StrEqual(g_sTagColor[client], "T", false)){
 				SetNativeCellRef(3, false);
 				return COLOR_TEAM;
 			}
-			else if (StrEqual(tagColor[client], "G", false)){
+			else if (StrEqual(g_sTagColor[client], "G", false)){
 				SetNativeCellRef(3, false);
 				return COLOR_GREEN;
 			}
-			else if (StrEqual(tagColor[client], "O", false)){
+			else if (StrEqual(g_sTagColor[client], "O", false)){
 				SetNativeCellRef(3, false);
 				return COLOR_OLIVE;
 			}
-			else if (strlen(tagColor[client]) == 6 || strlen(tagColor[client]) == 8){
-				SetNativeCellRef(3, strlen(tagColor[client]) == 8);
-				return StringToInt(tagColor[client], 16);
+			else if (strlen(g_sTagColor[client]) == 6 || strlen(g_sTagColor[client]) == 8){
+				SetNativeCellRef(3, strlen(g_sTagColor[client]) == 8);
+				return StringToInt(g_sTagColor[client], 16);
 			}
 			else {
 				SetNativeCellRef(3, false);
@@ -389,17 +389,17 @@ public int Native_GetColor(Handle plugin, int numParams){
 			}
 		}
 		case CCC_NameColor: {
-			if (StrEqual(usernameColor[client], "G", false)){
+			if (StrEqual(g_sUsernameColor[client], "G", false)){
 				SetNativeCellRef(3, false);
 				return COLOR_GREEN;
 			}
-			else if (StrEqual(usernameColor[client], "O", false)){
+			else if (StrEqual(g_sUsernameColor[client], "O", false)){
 				SetNativeCellRef(3, false);
 				return COLOR_OLIVE;
 			}
-			else if (strlen(usernameColor[client]) == 6 || strlen(usernameColor[client]) == 8){
-				SetNativeCellRef(3, strlen(usernameColor[client]) == 8);
-				return StringToInt(usernameColor[client], 16);
+			else if (strlen(g_sUsernameColor[client]) == 6 || strlen(g_sUsernameColor[client]) == 8){
+				SetNativeCellRef(3, strlen(g_sUsernameColor[client]) == 8);
+				return StringToInt(g_sUsernameColor[client], 16);
 			}
 			else {
 				SetNativeCellRef(3, false);
@@ -407,21 +407,21 @@ public int Native_GetColor(Handle plugin, int numParams){
 			}
 		}
 		case CCC_ChatColor: {
-			if (StrEqual(chatColor[client], "T", false)){
+			if (StrEqual(g_sChatColor[client], "T", false)){
 				SetNativeCellRef(3, false);
 				return COLOR_TEAM;
 			}
-			else if (StrEqual(chatColor[client], "G", false)){
+			else if (StrEqual(g_sChatColor[client], "G", false)){
 				SetNativeCellRef(3, false);
 				return COLOR_GREEN;
 			}
-			else if (StrEqual(chatColor[client], "O", false)){
+			else if (StrEqual(g_sChatColor[client], "O", false)){
 				SetNativeCellRef(3, false);
 				return COLOR_OLIVE;
 			}
-			else if (strlen(chatColor[client]) == 6 || strlen(chatColor[client]) == 8){
-				SetNativeCellRef(3, strlen(chatColor[client]) == 8);
-				return StringToInt(chatColor[client], 16);
+			else if (strlen(g_sChatColor[client]) == 6 || strlen(g_sChatColor[client]) == 8){
+				SetNativeCellRef(3, strlen(g_sChatColor[client]) == 8);
+				return StringToInt(g_sChatColor[client], 16);
 			}
 			else {
 				SetNativeCellRef(3, false);
@@ -468,13 +468,13 @@ public int Native_SetColor(Handle plugin, int numParams){
 	}
 	switch(GetNativeCell(2)){
 		case CCC_TagColor: {
-			strcopy(tagColor[client], sizeof(tagColor[]), color);
+			strcopy(g_sTagColor[client], sizeof(g_sTagColor[]), color);
 		}
 		case CCC_NameColor: {
-			strcopy(usernameColor[client], sizeof(usernameColor[]), color);
+			strcopy(g_sUsernameColor[client], sizeof(g_sUsernameColor[]), color);
 		}
 		case CCC_ChatColor: {
-			strcopy(chatColor[client], sizeof(chatColor[]), color);
+			strcopy(g_sChatColor[client], sizeof(g_sChatColor[]), color);
 		}
 	}
 	return true;
@@ -486,7 +486,7 @@ public int Native_GetTag(Handle plugin, int numParams){
 		ThrowNativeError(SP_ERROR_PARAM, "Invalid client or client is not in game");
 		return;
 	}
-	SetNativeString(2, tag[client], GetNativeCell(3));
+	SetNativeString(2, g_sTag[client], GetNativeCell(3));
 }
 
 public int Native_SetTag(Handle plugin, int numParams){
@@ -495,7 +495,7 @@ public int Native_SetTag(Handle plugin, int numParams){
 		ThrowNativeError(SP_ERROR_PARAM, "Invalid client or client is not in game");
 		return;
 	}
-	GetNativeString(2, tag[client], sizeof(tag[]));
+	GetNativeString(2, g_sTag[client], sizeof(g_sTag[]));
 }
 
 public int Native_ResetColor(Handle plugin, int numParams){
@@ -506,13 +506,13 @@ public int Native_ResetColor(Handle plugin, int numParams){
 	}
 	switch(GetNativeCell(2)){
 		case CCC_TagColor: {
-			strcopy(tagColor[client], sizeof(tagColor[]), defaultTagColor[client]);
+			strcopy(g_sTagColor[client], sizeof(g_sTagColor[]), g_sDefaultTagColor[client]);
 		}
 		case CCC_NameColor: {
-			strcopy(usernameColor[client], sizeof(usernameColor[]), defaultUsernameColor[client]);
+			strcopy(g_sUsernameColor[client], sizeof(g_sUsernameColor[]), g_sDefaultUsernameColor[client]);
 		}
 		case CCC_ChatColor: {
-			strcopy(chatColor[client], sizeof(chatColor[]), defaultChatColor[client]);
+			strcopy(g_sChatColor[client], sizeof(g_sChatColor[]), g_sDefaultChatColor[client]);
 		}
 	}
 }
@@ -523,5 +523,5 @@ public int Native_ResetTag(Handle plugin, int numParams){
 		ThrowNativeError(SP_ERROR_PARAM, "Invalid client or client is not in game");
 		return;
 	}
-	strcopy(tag[client], sizeof(tag[]), defaultTag[client]);
+	strcopy(g_sTag[client], sizeof(g_sTag[]), g_sDefaultTag[client]);
 }
