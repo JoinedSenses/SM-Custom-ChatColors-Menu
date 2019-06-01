@@ -138,6 +138,7 @@ public void OnPluginStart() {
 			if (g_CurrentMod != GameType_DOD) {
 				SetFailState("Unsupported game");
 			}
+
 			g_bSayText2 = false;
 			HookUserMessage(umSayText, OnSayText, true);
 		}
@@ -230,6 +231,7 @@ public Action OnSayText2(UserMsg msg_id, BfRead msg, const int[] players, int pl
 		if (StrContains(cpTranslationName, "all", false) != -1) {
 			g_CurrentChatType = g_CurrentChatType | CHATFLAGS_ALL;
 		}
+
 		if (StrContains(cpTranslationName, "team", false) != -1
 		|| 	StrContains(cpTranslationName, "survivor", false) != -1
 		||	StrContains(cpTranslationName, "infected", false) != -1
@@ -237,9 +239,11 @@ public Action OnSayText2(UserMsg msg_id, BfRead msg, const int[] players, int pl
 		||	StrContains(cpTranslationName, "Cstrike_Chat_T", false) != -1) {
 			g_CurrentChatType = g_CurrentChatType | CHATFLAGS_TEAM;
 		}
+
 		if (StrContains(cpTranslationName, "spec", false) != -1) {
 			g_CurrentChatType = g_CurrentChatType | CHATFLAGS_SPEC;
 		}
+
 		if (StrContains(cpTranslationName, "dead", false) != -1) {
 			g_CurrentChatType = g_CurrentChatType | CHATFLAGS_DEAD;
 		}
@@ -417,9 +421,11 @@ public Action OnSayText(UserMsg msg_id, BfRead msg, const int[] players, int pla
 	if (StrContains(prefix, "(Team)") != -1) {
 		g_CurrentChatType |= CHATFLAGS_TEAM;
 	}
+
 	if (GetClientTeam(cpSender) <= 1) {
 		g_CurrentChatType |= CHATFLAGS_SPEC;
 	}
+
 	if (StrContains(prefix, "(Dead)") != -1) {
 		g_CurrentChatType |= CHATFLAGS_DEAD;
 	}
@@ -450,11 +456,13 @@ public Action OnSayText(UserMsg msg_id, BfRead msg, const int[] players, int pla
 		delete cpRecipients;
 		return Plugin_Continue;
 	}
-	else if (fResult == Plugin_Continue) {
+	
+	if (fResult == Plugin_Continue) {
 		delete cpRecipients;
 		return Plugin_Continue;
 	}
-	else if (fResult >= Plugin_Handled) {
+
+	if (fResult >= Plugin_Handled) {
 		delete cpRecipients;
 		return Plugin_Handled;
 	}

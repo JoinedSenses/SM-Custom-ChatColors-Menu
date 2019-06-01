@@ -6,7 +6,7 @@
 
 public Plugin myinfo = {
 	name        = "[Source 2013] Custom Chat Colors",
-	author      = "Dr. McKay",
+	author      = "Dr. McKay - Patched by JoinedSenses",
 	description = "Processes chat and provides colors for Source 2013 games",
 	version     = PLUGIN_VERSION,
 	url         = "http://www.doctormckay.com"
@@ -75,21 +75,20 @@ public void OnPluginStart(){
 }
 
 void LoadConfig(){
-	if (g_kvConfigFile != null) {
-		delete g_kvConfigFile;
-	}
+	delete g_kvConfigFile;
 	g_kvConfigFile = new KeyValues("admin_colors");
 	char path[64];
 	BuildPath(Path_SM, path, sizeof(path), "configs/custom-chatcolors.cfg");
+
 	if (!g_kvConfigFile.ImportFromFile(path)) {
 		SetFailState("Config file missing");
 	}
+
 	for (int i = 1; i <= MaxClients; i++){
-		if (!IsClientInGame(i) || IsFakeClient(i)) {
-			continue;
+		if (IsClientInGame(i) && !IsFakeClient(i)) {
+			ClearValues(i);
+			OnClientPostAdminCheck(i);
 		}
-		ClearValues(i);
-		OnClientPostAdminCheck(i);
 	}
 }
 
@@ -132,6 +131,7 @@ public void OnClientPostAdminCheck(int client){
 	char auth[32];
 	GetClientAuthId(client, AuthId_Steam2, auth, sizeof(auth));
 	g_kvConfigFile.Rewind();
+
 	if (!g_kvConfigFile.JumpToKey(auth)){
 		g_kvConfigFile.Rewind();
 		g_kvConfigFile.GotoFirstSubKey();
@@ -226,6 +226,7 @@ public Action OnChatMessage(int &author, ArrayList recipients, char[] name, char
 	else {
 		Format(name, MAXLENGTH_NAME, "\x03%s", name);
 	} // team color by default!
+
 	if (CheckForward(author, message, CCC_TagColor)){
 		if (strlen(g_sTag[author]) > 0){
 			if (StrEqual(g_sTagColor[author], "T", false)) {
@@ -438,6 +439,7 @@ public int Native_SetColor(Handle plugin, int numParams){
 		ThrowNativeError(SP_ERROR_PARAM, "Invalid client or client is not in game");
 		return false;
 	}
+
 	char color[32];
 	if (GetNativeCell(3) < 0){
 		switch(GetNativeCell(3)){
@@ -463,9 +465,11 @@ public int Native_SetColor(Handle plugin, int numParams){
 			Format(color, sizeof(color), "%08X", GetNativeCell(3));
 		} // Alpha specified
 	}
+
 	if (strlen(color) != 6 && strlen(color) != 8 && !StrEqual(color, "G", false) && !StrEqual(color, "O", false) && !StrEqual(color, "T", false)) {
 		return false;
 	}
+
 	switch(GetNativeCell(2)){
 		case CCC_TagColor: {
 			strcopy(g_sTagColor[client], sizeof(g_sTagColor[]), color);
@@ -477,6 +481,7 @@ public int Native_SetColor(Handle plugin, int numParams){
 			strcopy(g_sChatColor[client], sizeof(g_sChatColor[]), color);
 		}
 	}
+
 	return true;
 }
 
@@ -495,6 +500,7 @@ public int Native_SetTag(Handle plugin, int numParams){
 		ThrowNativeError(SP_ERROR_PARAM, "Invalid client or client is not in game");
 		return;
 	}
+
 	GetNativeString(2, g_sTag[client], sizeof(g_sTag[]));
 }
 
@@ -504,6 +510,7 @@ public int Native_ResetColor(Handle plugin, int numParams){
 		ThrowNativeError(SP_ERROR_PARAM, "Invalid client or client is not in game");
 		return;
 	}
+
 	switch(GetNativeCell(2)){
 		case CCC_TagColor: {
 			strcopy(g_sTagColor[client], sizeof(g_sTagColor[]), g_sDefaultTagColor[client]);
@@ -523,5 +530,6 @@ public int Native_ResetTag(Handle plugin, int numParams){
 		ThrowNativeError(SP_ERROR_PARAM, "Invalid client or client is not in game");
 		return;
 	}
+
 	strcopy(g_sTag[client], sizeof(g_sTag[]), g_sDefaultTag[client]);
 }
