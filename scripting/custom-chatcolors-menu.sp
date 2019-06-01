@@ -20,7 +20,7 @@ enum (<<= 1) {
 }
 
 #define PLUGIN_NAME "Custom Chat Colors Menu"
-#define PLUGIN_VERSION "2.9"
+#define PLUGIN_VERSION "2.10"
 #define MAX_COLORS 255
 
 Menu
@@ -952,7 +952,7 @@ void SQLQuery_Update(Handle owner, Handle hndl, const char[] strError, any data)
 // ====[STOCKS]==============================================================
 
 bool IsValidClient(int client) {
-	return (client > 0 || client <= MaxClients || IsClientInGame(client));
+	return (0 < client <= MaxClients && IsClientInGame(client));
 }
 
 bool IsValidHex(const char[] hex) {
@@ -980,7 +980,7 @@ void PrintUpdateMessage(int client) {
 	
 	char tag[24];
 	char tagcolor[12];
-	if (!g_bHideTag[client]) {	
+	if (!g_bHideTag[client]) {
 		CCC_GetTag(client, tag, sizeof(tag));
 		if (g_strColor[client][TAG][0] != '\0') {
 			Format(tagcolor, sizeof(tagcolor), "\x07%s", g_strColor[client][TAG]);
