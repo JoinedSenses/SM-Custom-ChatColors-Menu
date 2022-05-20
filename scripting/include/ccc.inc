@@ -15,10 +15,12 @@ enum CCC_ColorType {
 	CCC_ChatColor
 };
 
-#define COLOR_NONE		-1
-#define COLOR_GREEN		-2
-#define COLOR_OLIVE		-3
-#define COLOR_TEAM		-4
+enum {
+	Color_None = -1,
+	Color_Green = -2,
+	Color_Olive = -3,
+	Color_Team = -4
+}
 
 /**
  * Gets a client's color as a hexadecimal integer.

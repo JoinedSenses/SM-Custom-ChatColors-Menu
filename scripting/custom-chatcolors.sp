@@ -2,7 +2,7 @@
 #pragma newdecls required
 #include <sourcemod>
 #include <scp>
-#define PLUGIN_VERSION		"3.2.1"
+#define PLUGIN_VERSION		"3.2.2"
 
 public Plugin myinfo = {
 	name        = "[Source 2013] Custom Chat Colors",
@@ -13,39 +13,27 @@ public Plugin myinfo = {
 };
 
 GlobalForward
-	  g_gfColorForward
-	, g_gfNameForward
-	, g_gfTagForward
-	, g_gfApplicationForward
-	, g_gfMessageForward
-	, g_gfPreLoadedForward
-	, g_gfLoadedForward
-	, g_gfConfigReloadedForward;
+	g_gfColorForward,
+	g_gfNameForward,
+	g_gfTagForward,
+	g_gfApplicationForward,
+	g_gfMessageForward,
+	g_gfPreLoadedForward,
+	g_gfLoadedForward,
+	g_gfConfigReloadedForward;
 KeyValues
-	  g_kvConfigFile;
+	g_kvConfigFile;
 char
-	  g_sTag[MAXPLAYERS+1][32]
-	, g_sTagColor[MAXPLAYERS+1][12]
-	, g_sUsernameColor[MAXPLAYERS+1][12]
-	, g_sChatColor[MAXPLAYERS+1][12]
-	, g_sDefaultTag[MAXPLAYERS+1][32]
-	, g_sDefaultTagColor[MAXPLAYERS+1][12]
-	, g_sDefaultUsernameColor[MAXPLAYERS+1][12]
-	, g_sDefaultChatColor[MAXPLAYERS+1][12];
+	g_sTag[MAXPLAYERS+1][32],
+	g_sTagColor[MAXPLAYERS+1][12],
+	g_sUsernameColor[MAXPLAYERS+1][12],
+	g_sChatColor[MAXPLAYERS+1][12],
+	g_sDefaultTag[MAXPLAYERS+1][32],
+	g_sDefaultTagColor[MAXPLAYERS+1][12],
+	g_sDefaultUsernameColor[MAXPLAYERS+1][12],
+	g_sDefaultChatColor[MAXPLAYERS+1][12];
 
-enum CCC_ColorType {
-	CCC_TagColor,
-	CCC_NameColor,
-	CCC_ChatColor
-};
-
-#define COLOR_NONE -1
-#define COLOR_GREEN -2
-#define COLOR_OLIVE -3
-#define COLOR_TEAM -4
-
-#define UPDATE_FILE "chatcolors.txt"
-#define CONVAR_PREFIX "custom_chat_colors"
+#include <ccc>
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max){
 	MarkNativeAsOptional("Updater_AddPlugin");
@@ -364,21 +352,21 @@ public int Native_GetColor(Handle plugin, int numParams){
 	int client = GetNativeCell(1);
 	if (client < 1 || client > MaxClients || !IsClientInGame(client)){
 		ThrowNativeError(SP_ERROR_PARAM, "Invalid client or client is not in game");
-		return COLOR_NONE;
+		return Color_None;
 	}
 	switch(GetNativeCell(2)){
 		case CCC_TagColor: {
 			if (StrEqual(g_sTagColor[client], "T", false)){
 				SetNativeCellRef(3, false);
-				return COLOR_TEAM;
+				return Color_Team;
 			}
 			else if (StrEqual(g_sTagColor[client], "G", false)){
 				SetNativeCellRef(3, false);
-				return COLOR_GREEN;
+				return Color_Green;
 			}
 			else if (StrEqual(g_sTagColor[client], "O", false)){
 				SetNativeCellRef(3, false);
-				return COLOR_OLIVE;
+				return Color_Olive;
 			}
 			else if (strlen(g_sTagColor[client]) == 6 || strlen(g_sTagColor[client]) == 8){
 				SetNativeCellRef(3, strlen(g_sTagColor[client]) == 8);
@@ -386,17 +374,17 @@ public int Native_GetColor(Handle plugin, int numParams){
 			}
 			else {
 				SetNativeCellRef(3, false);
-				return COLOR_NONE;
+				return Color_None;
 			}
 		}
 		case CCC_NameColor: {
 			if (StrEqual(g_sUsernameColor[client], "G", false)){
 				SetNativeCellRef(3, false);
-				return COLOR_GREEN;
+				return Color_Green;
 			}
 			else if (StrEqual(g_sUsernameColor[client], "O", false)){
 				SetNativeCellRef(3, false);
-				return COLOR_OLIVE;
+				return Color_Olive;
 			}
 			else if (strlen(g_sUsernameColor[client]) == 6 || strlen(g_sUsernameColor[client]) == 8){
 				SetNativeCellRef(3, strlen(g_sUsernameColor[client]) == 8);
@@ -404,21 +392,21 @@ public int Native_GetColor(Handle plugin, int numParams){
 			}
 			else {
 				SetNativeCellRef(3, false);
-				return COLOR_TEAM;
+				return Color_Team;
 			}
 		}
 		case CCC_ChatColor: {
 			if (StrEqual(g_sChatColor[client], "T", false)){
 				SetNativeCellRef(3, false);
-				return COLOR_TEAM;
+				return Color_Team;
 			}
 			else if (StrEqual(g_sChatColor[client], "G", false)){
 				SetNativeCellRef(3, false);
-				return COLOR_GREEN;
+				return Color_Green;
 			}
 			else if (StrEqual(g_sChatColor[client], "O", false)){
 				SetNativeCellRef(3, false);
-				return COLOR_OLIVE;
+				return Color_Olive;
 			}
 			else if (strlen(g_sChatColor[client]) == 6 || strlen(g_sChatColor[client]) == 8){
 				SetNativeCellRef(3, strlen(g_sChatColor[client]) == 8);
@@ -426,11 +414,11 @@ public int Native_GetColor(Handle plugin, int numParams){
 			}
 			else {
 				SetNativeCellRef(3, false);
-				return COLOR_NONE;
+				return Color_None;
 			}
 		}
 	}
-	return COLOR_NONE;
+	return Color_None;
 }
 
 public int Native_SetColor(Handle plugin, int numParams){
@@ -443,16 +431,16 @@ public int Native_SetColor(Handle plugin, int numParams){
 	char color[32];
 	if (GetNativeCell(3) < 0){
 		switch(GetNativeCell(3)){
-			case COLOR_GREEN: {
+			case Color_Green: {
 				Format(color, sizeof(color), "G");
 			}
-			case COLOR_OLIVE: {
+			case Color_Olive: {
 				Format(color, sizeof(color), "O");
 			}
-			case COLOR_TEAM: {
+			case Color_Team: {
 				Format(color, sizeof(color), "T");
 			}
-			case COLOR_NONE: {
+			case Color_None: {
 				Format(color, sizeof(color), "");
 			}
 		}
